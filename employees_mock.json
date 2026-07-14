@@ -1,0 +1,12 @@
+[
+  { "EmployeeID": "0001", "FirstName": "สมชาย", "LastName": "รักดี", "Department": "ฝ่ายผลิต" },
+  { "EmployeeID": "0002", "FirstName": "สมหญิง", "LastName": "เรียนดี", "Department": "ฝ่ายขาย" },
+  { "EmployeeID": "0003", "FirstName": "กิตติ", "LastName": "มุ่งมั่น", "Department": "ไอที" },
+  { "EmployeeID": "0004", "FirstName": "นภา", "LastName": "สว่างไสว", "Department": "บัญชี" },
+  { "EmployeeID": "0005", "FirstName": "วิรุฬห์", "LastName": "ก้าวหน้า", "Department": "คลังสินค้า" },
+  { "EmployeeID": "0006", "FirstName": "รสริน", "LastName": "สิริกุล", "Department": "การตลาด" },
+  { "EmployeeID": "0007", "FirstName": "ประวิทย์", "LastName": "ทุ่มเท", "Department": "ทรัพยากรบุคคล" },
+  { "EmployeeID": "0008", "FirstName": "ศรัญญู", "LastName": "เลิศล้ำ", "Department": "ฝ่ายผลิต" },
+  { "EmployeeID": "0026", "FirstName": "สุพรรษา", "LastName": "มะลิ", "Department": "ฝ่ายบุคคล" },
+  { "EmployeeID": "0105", "FirstName": "เกรียงไกร", "LastName": "ชาญศิลป์", "Department": "ขนส่ง" }
+]
