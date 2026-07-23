@@ -10,7 +10,7 @@ const STATE = {
   },
   project: {
     adminPassword: "ad2026",
-    systemDate: "2026-07-14", // Local system date matching workspace time
+    systemDate: new Date().toISOString().split('T')[0], // Local system date auto-updated
     targetCompletionDate: "2026-08-26" // 3-month completion date (Buddhist Lent End)
   },
   config: {
@@ -26,7 +26,7 @@ const STATE = {
   eligibleForDraw: [] // Eligible participants for Lucky Wheel
 };
 
-// Default Mock Employee List (used when Name sheet is empty or offline)
+// Default Mock Employee List (used ONLY when explicitly in Mock Mode)
 const DEFAULT_EMPLOYEE_DB = [
   { EmployeeID: "0001", FirstName: "สมชาย", LastName: "รักดี", Department: "ฝ่ายผลิต" },
   { EmployeeID: "0002", FirstName: "สมหญิง", LastName: "เรียนดี", Department: "ฝ่ายขาย" },
@@ -38,26 +38,6 @@ const DEFAULT_EMPLOYEE_DB = [
   { EmployeeID: "0008", FirstName: "ศรัญญู", LastName: "เลิศล้ำ", Department: "ฝ่ายผลิต" },
   { EmployeeID: "0026", FirstName: "สุพรรษา", LastName: "มะลิ", Department: "ฝ่ายบุคคล" },
   { EmployeeID: "0105", FirstName: "เกรียงไกร", LastName: "ชาญศิลป์", Department: "ขนส่ง" }
-];
-
-// Default Mock Registrations (to make dashboard look alive in Mock Mode)
-const DEFAULT_MOCK_REGISTRATIONS = [
-  { EmployeeID: "0001", FirstName: "สมชาย", LastName: "รักดี", Department: "ฝ่ายผลิต", Phone: "101", Shift: "Team A", Goal: "เลิก", Target: "เครื่องดื่มแอลกอฮอล์", Duration: "3 เดือน", Timestamp: "2026-07-01 08:30:12" },
-  { EmployeeID: "0002", FirstName: "สมหญิง", LastName: "เรียนดี", Department: "ฝ่ายขาย", Phone: "204", Shift: "Team B", Goal: "ลด", Target: "บุหรี่", Duration: "2 เดือน", Timestamp: "2026-07-02 09:15:43" },
-  { EmployeeID: "0003", FirstName: "กิตติ", LastName: "มุ่งมั่น", Department: "ไอที", Phone: "404", Shift: "เช้าตลอด", Goal: "เลิก", Target: "ทั้ง 2 อย่าง", Duration: "3 เดือน", Timestamp: "2026-07-02 11:24:00" },
-  { EmployeeID: "0004", FirstName: "นภา", LastName: "สว่างไสว", Department: "บัญชี", Phone: "302", Shift: "คร่อมกะ", Goal: "ลด", Target: "เครื่องดื่มแอลกอฮอล์", Duration: "1 เดือน", Timestamp: "2026-07-03 14:05:19" },
-  { EmployeeID: "0005", FirstName: "วิรุฬห์", LastName: "ก้าวหน้า", Department: "คลังสินค้า", Phone: "511", Shift: "Team A", Goal: "เลิก", Target: "บุหรี่", Duration: "3 เดือน", Timestamp: "2026-07-04 10:12:35" },
-  { EmployeeID: "0006", FirstName: "รสริน", LastName: "สิริกุล", Department: "การตลาด", Phone: "601", Shift: "Team B", Goal: "ลด", Target: "ทั้ง 2 อย่าง", Duration: "2 เดือน", Timestamp: "2026-07-05 16:32:00" },
-  { EmployeeID: "0026", FirstName: "สุพรรษา", LastName: "มะลิ", Department: "ฝ่ายบุคคล", Phone: "702", Shift: "เช้าตลอด", Goal: "เลิก", Target: "เครื่องดื่มแอลกอฮอล์", Duration: "3 เดือน", Timestamp: "2026-07-06 09:44:21" }
-];
-
-// Default Mock Surveys (to showcase success and failed rates in Mock Mode)
-const DEFAULT_MOCK_SURVEYS = [
-  { EmployeeID: "0001", FirstName: "สมชาย", LastName: "รักดี", Department: "ฝ่ายผลิต", Achieved: "ทำได้", Reason: "", Timestamp: "2026-08-26 08:35:10" },
-  { EmployeeID: "0002", FirstName: "สมหญิง", LastName: "เรียนดี", Department: "ฝ่ายขาย", Achieved: "ทำได้", Reason: "", Timestamp: "2026-08-26 09:12:05" },
-  { EmployeeID: "0003", FirstName: "กิตติ", LastName: "มุ่งมั่น", Department: "ไอที", Achieved: "ทำไม่ได้", Reason: "มีงานสังสรรค์ครอบครัวและทนความอยากบุหรี่ในช่วงสัปดาห์ที่ 4 ไม่ไหว", Timestamp: "2026-08-26 10:45:19" },
-  { EmployeeID: "0004", FirstName: "นภา", LastName: "สว่างไสว", Department: "บัญชี", Achieved: "ทำได้", Reason: "", Timestamp: "2026-08-26 11:20:00" },
-  { EmployeeID: "0026", FirstName: "สุพรรษา", LastName: "มะลิ", Department: "ฝ่ายบุคคล", Achieved: "ทำได้", Reason: "", Timestamp: "2026-08-26 13:05:44" }
 ];
 
 /* ==========================================================================
@@ -79,7 +59,6 @@ document.addEventListener("DOMContentLoaded", () => {
 // Load Settings from LocalStorage
 function loadSettings() {
   const savedUrl = localStorage.getItem("lent_api_url");
-  const savedMode = localStorage.getItem("lent_operation_mode");
   const savedPw = localStorage.getItem("lent_admin_password");
   
   if (savedUrl) STATE.apiSettings.apiUrl = savedUrl;
@@ -92,12 +71,15 @@ function loadSettings() {
   if (savedPw) STATE.project.adminPassword = savedPw;
   
   // Set UI elements based on loaded settings
-  document.getElementById("setting-api-url").value = STATE.apiSettings.apiUrl;
-  document.getElementById("setting-admin-pw").value = STATE.project.adminPassword;
+  const urlInput = document.getElementById("setting-api-url");
+  if (urlInput) urlInput.value = STATE.apiSettings.apiUrl;
+  
+  const pwInput = document.getElementById("setting-admin-pw");
+  if (pwInput) pwInput.value = STATE.project.adminPassword;
   
   const modeRadios = document.getElementsByName("setting-mode");
   for (let r of modeRadios) {
-    if (r.value === (STATE.apiSettings.isMockMode ? "mock" : "online")) {
+    if (r.value === "online") {
       r.checked = true;
     }
   }
@@ -108,9 +90,10 @@ function loadSettings() {
 
 // Toggle display of API URL field depending on mode
 function toggleApiUrlField() {
-  const isMock = document.querySelector('input[name="setting-mode"]:checked').value === "mock";
+  const modeRadio = document.querySelector('input[name="setting-mode"]:checked');
+  const isMock = modeRadio ? modeRadio.value === "mock" : false;
   const urlGroup = document.getElementById("setting-url-group");
-  urlGroup.style.display = isMock ? "none" : "block";
+  if (urlGroup) urlGroup.style.display = isMock ? "none" : "block";
 }
 
 // Update badges on the header
@@ -119,17 +102,19 @@ function updateModeBadges() {
   const onlineBadge = document.getElementById("online-badge");
   
   if (STATE.apiSettings.isMockMode) {
-    mockBadge.style.display = "inline-flex";
-    onlineBadge.style.display = "none";
+    if (mockBadge) mockBadge.style.display = "inline-flex";
+    if (onlineBadge) onlineBadge.style.display = "none";
   } else {
-    mockBadge.style.display = "none";
-    onlineBadge.style.display = "inline-flex";
-    if (!STATE.apiSettings.apiUrl) {
-      onlineBadge.innerText = "เตือน: ยังไม่กรอก Web App URL";
-      onlineBadge.className = "badge badge-warning";
-    } else {
-      onlineBadge.innerText = "เชื่อมต่อ Google Sheet (Online)";
-      onlineBadge.className = "badge badge-success";
+    if (mockBadge) mockBadge.style.display = "none";
+    if (onlineBadge) {
+      onlineBadge.style.display = "inline-flex";
+      if (!STATE.apiSettings.apiUrl) {
+        onlineBadge.innerText = "เตือน: ยังไม่กรอก Web App URL";
+        onlineBadge.className = "badge badge-warning";
+      } else {
+        onlineBadge.innerText = "เชื่อมต่อ Google Sheet (Online)";
+        onlineBadge.className = "badge badge-success";
+      }
     }
   }
 }
@@ -322,10 +307,9 @@ function fetchJSONP(url) {
   });
 }
 
-// Sync all data from Mock DB or Google Sheet API
+// Sync all data from Google Sheet API (Clear previous data completely)
 async function syncData() {
   if (STATE.apiSettings.isMockMode) {
-    // Load local mock database or state
     loadMockData();
     updateModeBadges();
     calculateStats();
@@ -341,6 +325,7 @@ async function syncData() {
   try {
     const response = await fetchJSONP(`${STATE.apiSettings.apiUrl}?action=getAllData`);
     if (response && response.success) {
+      // Overwrite state completely with fresh data from Google Sheets
       STATE.employees = response.data.employees || [];
       STATE.registrations = response.data.registrations || [];
       STATE.surveys = response.data.surveys || [];
@@ -365,46 +350,12 @@ async function syncData() {
   }
 }
 
-// Initialize Local Mock Data
+// Initialize Local Mock Data (used only if explicitly set to mock mode)
 function loadMockData() {
-  // Load employees list
   STATE.employees = DEFAULT_EMPLOYEE_DB;
-  
-  // Load registrations from localStorage or defaults
-  const savedReg = localStorage.getItem("mock_registrations");
-  if (savedReg) {
-    STATE.registrations = JSON.parse(savedReg);
-  } else {
-    STATE.registrations = [...DEFAULT_MOCK_REGISTRATIONS];
-    localStorage.setItem("mock_registrations", JSON.stringify(STATE.registrations));
-  }
-  
-  // Load surveys from localStorage or defaults
-  const savedSurveys = localStorage.getItem("mock_surveys");
-  if (savedSurveys) {
-    STATE.surveys = JSON.parse(savedSurveys);
-  } else {
-    STATE.surveys = [...DEFAULT_MOCK_SURVEYS];
-    localStorage.setItem("mock_surveys", JSON.stringify(STATE.surveys));
-  }
-
-  // Load winners
-  const savedWinners = localStorage.getItem("mock_winners");
-  if (savedWinners) {
-    STATE.winners = JSON.parse(savedWinners);
-  } else {
-    STATE.winners = [];
-    localStorage.setItem("mock_winners", JSON.stringify(STATE.winners));
-  }
-
-  // Load mock config
-  const savedConfig = localStorage.getItem("mock_config_survey_open");
-  if (savedConfig) {
-    STATE.config.SurveyOpen = savedConfig;
-  } else {
-    STATE.config.SurveyOpen = "false";
-    localStorage.setItem("mock_config_survey_open", "false");
-  }
+  STATE.registrations = [];
+  STATE.surveys = [];
+  STATE.winners = [];
   
   const isOpen = STATE.config.SurveyOpen === "true";
   updateSurveyAvailability(isOpen);
@@ -414,7 +365,7 @@ function loadMockData() {
 // Show/Hide Full Screen Loader
 function showLoader(show) {
   const loader = document.getElementById("global-loader");
-  loader.style.display = show ? "flex" : "none";
+  if (loader) loader.style.display = show ? "flex" : "none";
 }
 
 /* ==========================================================================
@@ -423,27 +374,40 @@ function showLoader(show) {
 
 function initFormEvents() {
   // 1. Employee lookup in Registration
-  document.getElementById("btn-search-employee").addEventListener("click", () => {
-    lookupEmployee("reg-empid", "reg-firstname", "reg-lastname", "reg-department");
-  });
-  // Trigger lookup on Enter key
-  document.getElementById("reg-empid").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
+  const searchEmpBtn = document.getElementById("btn-search-employee");
+  if (searchEmpBtn) {
+    searchEmpBtn.addEventListener("click", () => {
       lookupEmployee("reg-empid", "reg-firstname", "reg-lastname", "reg-department");
-    }
-  });
+    });
+  }
+  
+  const regEmpInput = document.getElementById("reg-empid");
+  if (regEmpInput) {
+    regEmpInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        lookupEmployee("reg-empid", "reg-firstname", "reg-lastname", "reg-department");
+      }
+    });
+  }
 
   // 2. Employee lookup in Survey
-  document.getElementById("btn-search-survey").addEventListener("click", () => {
-    lookupRegisteredParticipant();
-  });
-  document.getElementById("survey-empid").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
+  const searchSurveyBtn = document.getElementById("btn-search-survey");
+  if (searchSurveyBtn) {
+    searchSurveyBtn.addEventListener("click", () => {
       lookupRegisteredParticipant();
-    }
-  });
+    });
+  }
+  
+  const surveyEmpInput = document.getElementById("survey-empid");
+  if (surveyEmpInput) {
+    surveyEmpInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        lookupRegisteredParticipant();
+      }
+    });
+  }
 
   // 3. Toggle Survey reason input based on achievement radio
   const surveyAchievedRadios = document.getElementsByName("survey-achieved");
@@ -452,25 +416,32 @@ function initFormEvents() {
       const reasonGroup = document.getElementById("survey-reason-group");
       const reasonText = document.getElementById("survey-reason");
       if (e.target.value === "ทำไม่ได้") {
-        reasonGroup.style.display = "block";
-        reasonText.required = true;
-        reasonText.disabled = false;
+        if (reasonGroup) reasonGroup.style.display = "block";
+        if (reasonText) {
+          reasonText.required = true;
+          reasonText.disabled = false;
+        }
       } else {
-        reasonGroup.style.display = "none";
-        reasonText.required = false;
-        reasonText.disabled = true;
+        if (reasonGroup) reasonGroup.style.display = "none";
+        if (reasonText) {
+          reasonText.required = false;
+          reasonText.disabled = true;
+        }
       }
     });
   }
 
   // 4. Submit Registration
-  document.getElementById("register-form").addEventListener("submit", handleRegisterFormSubmit);
+  const regForm = document.getElementById("register-form");
+  if (regForm) regForm.addEventListener("submit", handleRegisterFormSubmit);
 
   // 5. Submit Survey
-  document.getElementById("survey-form").addEventListener("submit", handleSurveyFormSubmit);
+  const surveyForm = document.getElementById("survey-form");
+  if (surveyForm) surveyForm.addEventListener("submit", handleSurveyFormSubmit);
 
   // 6. Submit Settings Form
-  document.getElementById("settings-form").addEventListener("submit", handleSettingsFormSubmit);
+  const settingsForm = document.getElementById("settings-form");
+  if (settingsForm) settingsForm.addEventListener("submit", handleSettingsFormSubmit);
 
   // 6.1 Toggle display of Web App URL when setting mode is toggled
   const settingModeRadios = document.getElementsByName("setting-mode");
@@ -479,20 +450,26 @@ function initFormEvents() {
   }
 
   // 7. Refresh Data manual trigger
-  document.getElementById("btn-sync-data").addEventListener("click", async () => {
-    await syncData();
-    alert("อัปเดตข้อมูลเรียลไทม์เรียบร้อยแล้วค่ะ!");
-  });
+  const syncBtn = document.getElementById("btn-sync-data");
+  if (syncBtn) {
+    syncBtn.addEventListener("click", async () => {
+      await syncData();
+      alert("อัปเดตข้อมูลเรียลไทม์เรียบร้อยแล้วค่ะ!");
+    });
+  }
 
   // 8. Close Encouragement Popup Modal
-  document.getElementById("btn-close-encourage").addEventListener("click", () => {
-    document.getElementById("encouragement-overlay").style.display = "none";
-    document.getElementById("register-form").reset();
-    // Clear read-only inputs
-    document.getElementById("reg-firstname").value = "";
-    document.getElementById("reg-lastname").value = "";
-    document.getElementById("reg-department").value = "";
-  });
+  const closeModalBtn = document.getElementById("btn-close-encourage");
+  if (closeModalBtn) {
+    closeModalBtn.addEventListener("click", () => {
+      document.getElementById("encouragement-overlay").style.display = "none";
+      if (regForm) regForm.reset();
+      // Clear read-only inputs
+      document.getElementById("reg-firstname").value = "";
+      document.getElementById("reg-lastname").value = "";
+      document.getElementById("reg-department").value = "";
+    });
+  }
 }
 
 // Lookup Employee ID (Supports autocomplete name & padding leading zero)
@@ -511,7 +488,7 @@ function lookupEmployee(inputId, firstNameId, lastNameId, deptId) {
     inputEl.value = empId; // update in UI
   }
 
-  // Look in STATE.employees (either fetched from Name sheet or mock)
+  // Look in STATE.employees (fetched from Name sheet)
   const employee = STATE.employees.find(e => String(e.EmployeeID).trim() === empId);
   
   if (employee) {
@@ -561,16 +538,18 @@ function lookupRegisteredParticipant() {
   const msgBox = document.getElementById("survey-msg-box");
   
   // Reset fields
-  profileBox.style.display = "none";
-  msgBox.style.display = "none";
+  if (profileBox) profileBox.style.display = "none";
+  if (msgBox) msgBox.style.display = "none";
   
   if (registration) {
     // Check if already submitted survey
     const isSurveyed = STATE.surveys.some(s => String(s.EmployeeID).trim() === empId);
     if (isSurveyed) {
-      msgBox.innerText = "รหัสพนักงานนี้เคยทำแบบประเมินผลสำเร็จเรียบร้อยแล้วค่ะ ขอขอบพระคุณสำหรับข้อมูลค่ะ";
-      msgBox.className = "alert alert-warning";
-      msgBox.style.display = "block";
+      if (msgBox) {
+        msgBox.innerText = "รหัสพนักงานนี้เคยทำแบบประเมินผลสำเร็จเรียบร้อยแล้วค่ะ ขอขอบพระคุณสำหรับข้อมูลค่ะ";
+        msgBox.className = "alert alert-warning";
+        msgBox.style.display = "block";
+      }
       disableSurveyFormInputs(true);
       return;
     }
@@ -582,7 +561,7 @@ function lookupRegisteredParticipant() {
     document.getElementById("survey-found-target").innerText = registration.Target;
     document.getElementById("survey-found-duration").innerText = registration.Duration;
     
-    profileBox.style.display = "flex";
+    if (profileBox) profileBox.style.display = "flex";
     disableSurveyFormInputs(false);
   } else {
     alert("ไม่พบข้อมูลการลงทะเบียนเข้าร่วมสำหรับรหัสพนักงานนี้ กรุณาลงทะเบียนเข้าร่วมโครงการก่อนทำแบบสอบถามประเมินผลค่ะ");
@@ -600,10 +579,10 @@ function disableSurveyFormInputs(disabled) {
     r.disabled = disabled;
   }
   
-  // Keep reason disabled unless "ทำไม่ได้" is active
-  const isFailedActive = document.querySelector('input[name="survey-achieved"]:checked').value === "ทำไม่ได้";
-  reasonText.disabled = disabled || !isFailedActive;
-  submitBtn.disabled = disabled;
+  const checkedRadio = document.querySelector('input[name="survey-achieved"]:checked');
+  const isFailedActive = checkedRadio ? checkedRadio.value === "ทำไม่ได้" : false;
+  if (reasonText) reasonText.disabled = disabled || !isFailedActive;
+  if (submitBtn) submitBtn.disabled = disabled;
 }
 
 // Registration form submission handler
@@ -644,44 +623,17 @@ async function handleRegisterFormSubmit(e) {
     duration: duration
   };
 
-  if (STATE.apiSettings.isMockMode) {
-    // Check local duplicate
-    if (STATE.registrations.some(r => String(r.EmployeeID).trim() === empId)) {
-      alert("รหัสพนักงานนี้ได้ลงทะเบียนเข้าร่วมโครงการเรียบร้อยแล้วค่ะ");
-      return;
+  try {
+    const url = `${STATE.apiSettings.apiUrl}?action=registerJSONP&payload=${encodeURIComponent(JSON.stringify(payload))}`;
+    const response = await fetchJSONP(url);
+    if (response && response.success) {
+      await syncData();
+      showEncouragementModal(firstName, lastName, goal, target, duration);
+    } else {
+      alert("ข้อผิดพลาดจากเซิร์ฟเวอร์: " + (response.error || "บันทึกข้อมูลไม่สำเร็จ"));
     }
-    
-    // Add to local state
-    payload.Timestamp = `${STATE.project.systemDate} 10:45:00`;
-    STATE.registrations.push({
-      EmployeeID: empId,
-      FirstName: firstName,
-      LastName: lastName,
-      Department: department,
-      Phone: phone,
-      Shift: shift,
-      Goal: goal,
-      Target: target,
-      Duration: duration,
-      Timestamp: payload.Timestamp
-    });
-    localStorage.setItem("mock_registrations", JSON.stringify(STATE.registrations));
-    showEncouragementModal(firstName, lastName, goal, target, duration);
-  } else {
-    // Send to Google Sheet
-    try {
-      const url = `${STATE.apiSettings.apiUrl}?action=registerJSONP&payload=${encodeURIComponent(JSON.stringify(payload))}`;
-      const response = await fetchJSONP(url);
-      if (response && response.success) {
-        // Sync layout
-        await syncData();
-        showEncouragementModal(firstName, lastName, goal, target, duration);
-      } else {
-        alert("ข้อผิดพลาดจากเซิร์ฟเวอร์: " + (response.error || "บันทึกข้อมูลไม่สำเร็จ"));
-      }
-    } catch (err) {
-      alert(err.message);
-    }
+  } catch (err) {
+    alert(err.message);
   }
 }
 
@@ -692,7 +644,6 @@ function showEncouragementModal(firstName, lastName, goal, target, duration) {
   document.getElementById("encourage-target").innerText = target;
   document.getElementById("encourage-duration").innerText = duration;
   
-  // Set dynamic color of goal text
   const goalEl = document.getElementById("encourage-goal");
   if (goal === "เลิก") {
     goalEl.className = "highlight-green";
@@ -711,7 +662,8 @@ async function handleSurveyFormSubmit(e) {
   e.preventDefault();
 
   const empId = document.getElementById("survey-empid").value.trim();
-  const achieved = document.querySelector('input[name="survey-achieved"]:checked').value;
+  const checkedAchieved = document.querySelector('input[name="survey-achieved"]:checked');
+  const achieved = checkedAchieved ? checkedAchieved.value : "";
   const reason = achieved === "ทำไม่ได้" ? document.getElementById("survey-reason").value.trim() : "";
 
   const registration = STATE.registrations.find(r => String(r.EmployeeID).trim() === empId);
@@ -727,59 +679,38 @@ async function handleSurveyFormSubmit(e) {
     reason: reason
   };
 
-  if (STATE.apiSettings.isMockMode) {
-    if (STATE.surveys.some(s => String(s.EmployeeID).trim() === empId)) {
-      alert("รหัสพนักงานนี้เคยทำแบบประเมินผลสำเร็จไปแล้วในระบบค่ะ");
-      return;
+  try {
+    const url = `${STATE.apiSettings.apiUrl}?action=submitSurveyJSONP&payload=${encodeURIComponent(JSON.stringify(payload))}`;
+    const response = await fetchJSONP(url);
+    if (response && response.success) {
+      await syncData();
+      alert(achieved === "ทำได้" 
+        ? `บันทึกแบบประเมินสำเร็จ ยินดีด้วยที่คุณรักษาสัจจะคำปฏิญาณสำเร็จตลอดโครงการค่ะ! 🎉` 
+        : `บันทึกแบบประเมินเรียบร้อยแล้วค่ะ ขอบคุณที่ร่วมส่งผลข้อมูลนะคะ!`
+      );
+      if (achieved === "ทำได้") triggerConfetti();
+      resetSurveyForm();
+    } else {
+      alert("ข้อผิดพลาดจากเซิร์ฟเวอร์: " + (response.error || "บันทึกข้อมูลไม่สำเร็จ"));
     }
-    
-    payload.Timestamp = `${STATE.project.systemDate} 11:30:20`;
-    STATE.surveys.push({
-      EmployeeID: empId,
-      FirstName: registration.FirstName,
-      LastName: registration.LastName,
-      Department: registration.Department,
-      Achieved: achieved,
-      Reason: reason,
-      Timestamp: payload.Timestamp
-    });
-    localStorage.setItem("mock_surveys", JSON.stringify(STATE.surveys));
-    
-    alert(achieved === "ทำได้" 
-      ? `บันทึกแบบประเมินสำเร็จ ยินดีด้วยที่คุณรักษาสัจจะคำปฏิญาณสำเร็จตลอดโครงการค่ะ! 🎉` 
-      : `บันทึกแบบประเมินเรียบร้อยแล้วค่ะ ขอบคุณที่ร่วมส่งผลข้อมูลนะคะ สุขภาพของคุณก็ยังคงก้าวหน้าต่อไปค่ะ!`
-    );
-    
-    if (achieved === "ทำได้") triggerConfetti();
-    
-    resetSurveyForm();
-    calculateStats();
-  } else {
-    try {
-      const url = `${STATE.apiSettings.apiUrl}?action=submitSurveyJSONP&payload=${encodeURIComponent(JSON.stringify(payload))}`;
-      const response = await fetchJSONP(url);
-      if (response && response.success) {
-        await syncData();
-        alert(achieved === "ทำได้" 
-          ? `บันทึกแบบประเมินสำเร็จ ยินดีด้วยที่คุณรักษาสัจจะคำปฏิญาณสำเร็จตลอดโครงการค่ะ! 🎉` 
-          : `บันทึกแบบประเมินเรียบร้อยแล้วค่ะ ขอบคุณที่ร่วมส่งผลข้อมูลนะคะ!`
-        );
-        if (achieved === "ทำได้") triggerConfetti();
-        resetSurveyForm();
-      } else {
-        alert("ข้อผิดพลาดจากเซิร์ฟเวอร์: " + (response.error || "บันทึกข้อมูลไม่สำเร็จ"));
-      }
-    } catch (err) {
-      alert(err.message);
-    }
+  } catch (err) {
+    alert(err.message);
   }
 }
 
 function resetSurveyForm() {
-  document.getElementById("survey-form").reset();
-  document.getElementById("survey-profile-box").style.display = "none";
-  document.getElementById("survey-msg-box").style.display = "none";
-  document.getElementById("survey-reason-group").style.display = "none";
+  const surveyForm = document.getElementById("survey-form");
+  if (surveyForm) surveyForm.reset();
+  
+  const profileBox = document.getElementById("survey-profile-box");
+  if (profileBox) profileBox.style.display = "none";
+  
+  const msgBox = document.getElementById("survey-msg-box");
+  if (msgBox) msgBox.style.display = "none";
+  
+  const reasonGroup = document.getElementById("survey-reason-group");
+  if (reasonGroup) reasonGroup.style.display = "none";
+  
   disableSurveyFormInputs(true);
 }
 
@@ -787,7 +718,6 @@ function resetSurveyForm() {
 function handleSettingsFormSubmit(e) {
   e.preventDefault();
   
-  const modeVal = "online"; // Force online mode directly
   const urlVal = document.getElementById("setting-api-url").value.trim();
   const pwVal = document.getElementById("setting-admin-pw").value.trim();
   
@@ -808,15 +738,16 @@ function handleSettingsFormSubmit(e) {
   toggleApiUrlField();
   updateModeBadges();
   
-  // Alert settings success and refresh data
   const msgEl = document.getElementById("settings-msg-box");
-  msgEl.innerText = "บันทึกการตั้งค่าระบบเรียบร้อยแล้ว กำลังดึงข้อมูลอัปเดต...";
-  msgEl.className = "alert alert-success";
-  msgEl.style.display = "block";
+  if (msgEl) {
+    msgEl.innerText = "บันทึกการตั้งค่าระบบเรียบร้อยแล้ว กำลังดึงข้อมูลอัปเดต...";
+    msgEl.className = "alert alert-success";
+    msgEl.style.display = "block";
+  }
   
   setTimeout(async () => {
     await syncData();
-    msgEl.style.display = "none";
+    if (msgEl) msgEl.style.display = "none";
     alert("บันทึกการตั้งค่าระบบและอัปเดตสถิติสมบูรณ์แล้วค่ะ!");
   }, 1000);
 }
@@ -826,13 +757,11 @@ function handleSettingsFormSubmit(e) {
    ========================================================================== */
 
 function initDateCheck() {
-  // Set default system date display
   const systemDateDisplay = document.getElementById("system-date-display");
   if (systemDateDisplay) {
     systemDateDisplay.innerText = formatDateThai(STATE.project.systemDate);
   }
   
-  // Perform survey lock check initially based on state
   updateSurveyAvailability(STATE.config.SurveyOpen === "true");
 }
 
@@ -846,14 +775,14 @@ function updateSurveyAvailability(enable) {
   
   if (enable) {
     container.classList.remove("disabled-container");
-    inputEl.disabled = false;
-    searchBtn.disabled = false;
+    if (inputEl) inputEl.disabled = false;
+    if (searchBtn) searchBtn.disabled = false;
     if (warn) warn.className = "alert alert-success";
     if (descEl) descEl.innerHTML = `🎉 **ระบบประเมินผลเปิดให้กรอกข้อมูลแล้ว** (ผู้ดูแลโครงการเปิดระบบอนุญาตให้บันทึกผลได้)`;
   } else {
     container.classList.add("disabled-container");
-    inputEl.disabled = true;
-    searchBtn.disabled = true;
+    if (inputEl) inputEl.disabled = true;
+    if (searchBtn) searchBtn.disabled = true;
     if (warn) warn.className = "alert alert-warning";
     if (descEl) descEl.innerHTML = `🔒 **แจ้งเตือนจากโครงการ:** แบบประเมินผลสัมฤทธิ์ครบ 3 เดือน **ยังไม่เปิดให้กรอกข้อมูล** ในขณะนี้ กรุณารอประกาศแจ้งเปิดระบบจากเจ้าหน้าที่โครงการค่ะ`;
     resetSurveyForm();
@@ -864,35 +793,27 @@ async function handleAdminSurveyToggle(e) {
   const open = e.target.checked;
   const statusStr = open ? "true" : "false";
   
-  // Update status label instantly in UI
   updateAdminSurveyToggleUI(open);
   
-  if (STATE.apiSettings.isMockMode) {
-    STATE.config.SurveyOpen = statusStr;
-    localStorage.setItem("mock_config_survey_open", statusStr);
-    updateSurveyAvailability(open);
-    alert("บันทึกการเปิด/ปิดสิทธิ์ทำแบบสอบถามในโหมดจำลองสำเร็จ!");
-  } else {
-    try {
-      showLoader(true);
-      const url = `${STATE.apiSettings.apiUrl}?action=setSurveyStatusJSONP&status=${statusStr}`;
-      const response = await fetchJSONP(url);
-      if (response && response.success) {
-        STATE.config.SurveyOpen = statusStr;
-        updateSurveyAvailability(open);
-        alert("อัปเดตสิทธิ์การกรอกแบบประเมินไปยัง Google Sheets สำเร็จ!");
-      } else {
-        alert("เกิดข้อผิดพลาดในการบันทึกค่า: " + (response.error || "ไม่สามารถเชื่อมต่อได้"));
-        e.target.checked = !open; // Revert checkbox state
-        updateAdminSurveyToggleUI(!open);
-      }
-    } catch (err) {
-      alert("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์: " + err.message);
-      e.target.checked = !open; // Revert
+  try {
+    showLoader(true);
+    const url = `${STATE.apiSettings.apiUrl}?action=setSurveyStatusJSONP&status=${statusStr}`;
+    const response = await fetchJSONP(url);
+    if (response && response.success) {
+      STATE.config.SurveyOpen = statusStr;
+      updateSurveyAvailability(open);
+      alert("อัปเดตสิทธิ์การกรอกแบบประเมินไปยัง Google Sheets สำเร็จ!");
+    } else {
+      alert("เกิดข้อผิดพลาดในการบันทึกค่า: " + (response.error || "ไม่สามารถเชื่อมต่อได้"));
+      e.target.checked = !open;
       updateAdminSurveyToggleUI(!open);
-    } finally {
-      showLoader(false);
     }
+  } catch (err) {
+    alert("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์: " + err.message);
+    e.target.checked = !open;
+    updateAdminSurveyToggleUI(!open);
+  } finally {
+    showLoader(false);
   }
 }
 
@@ -911,7 +832,7 @@ function updateAdminSurveyToggleUI(open) {
   }
 }
 
-// Convert date string YYYY-MM-DD to beautiful Thai date format
+// Convert date string YYYY-MM-DD to Thai date format
 function formatDateThai(dateStr) {
   if (!dateStr) return "";
   const d = new Date(dateStr);
@@ -921,7 +842,7 @@ function formatDateThai(dateStr) {
   ];
   const day = d.getDate();
   const month = months[d.getMonth()];
-  const year = d.getFullYear() + 543; // convert to Buddhist Era (B.E.)
+  const year = d.getFullYear() + 543;
   return `${day} ${month} ${year}`;
 }
 
@@ -950,35 +871,47 @@ function calculateStats() {
   stats.failPct = stats.totalSurvey > 0 ? Math.round((stats.failCount / stats.totalSurvey) * 100) : 0;
   
   // Update UI stats indicators
-  document.getElementById("dash-total-reg").innerText = stats.totalReg;
-  document.getElementById("dash-total-survey").innerText = stats.totalSurvey;
-  document.getElementById("dash-survey-pct").innerText = stats.totalReg > 0 ? Math.round((stats.totalSurvey / stats.totalReg) * 100) : 0;
+  const totalRegEl = document.getElementById("dash-total-reg");
+  if (totalRegEl) totalRegEl.innerText = stats.totalReg;
   
-  document.getElementById("dash-success-count").innerText = stats.successCount;
-  document.getElementById("dash-success-pct").innerText = `${stats.successPct}%`;
+  const totalSurveyEl = document.getElementById("dash-total-survey");
+  if (totalSurveyEl) totalSurveyEl.innerText = stats.totalSurvey;
   
-  document.getElementById("dash-fail-count").innerText = stats.failCount;
-  document.getElementById("dash-fail-pct").innerText = `${stats.failPct}%`;
+  const surveyPctEl = document.getElementById("dash-survey-pct");
+  if (surveyPctEl) surveyPctEl.innerText = stats.totalReg > 0 ? Math.round((stats.totalSurvey / stats.totalReg) * 100) : 0;
+  
+  const successCountEl = document.getElementById("dash-success-count");
+  if (successCountEl) successCountEl.innerText = stats.successCount;
+  
+  const successPctEl = document.getElementById("dash-success-pct");
+  if (successPctEl) successPctEl.innerText = `${stats.successPct}%`;
+  
+  const failCountEl = document.getElementById("dash-fail-count");
+  if (failCountEl) failCountEl.innerText = stats.failCount;
+  
+  const failPctEl = document.getElementById("dash-fail-pct");
+  if (failPctEl) failPctEl.innerText = `${stats.failPct}%`;
   
   // Populate Reasons list table
   const tbody = document.getElementById("dash-reasons-table-body");
-  tbody.innerHTML = "";
-  
-  const failedSurveys = STATE.surveys.filter(s => s.Achieved === "ทำไม่ได้");
-  
-  if (failedSurveys.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="4" class="text-center" style="color: var(--text-muted);">ไม่มีข้อมูลสถิติเหตุผลที่ปฏิบัติไม่ได้ค่ะ</td></tr>`;
-  } else {
-    failedSurveys.forEach(s => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td style="font-family: var(--font-family-nums); font-weight: 600;">${s.EmployeeID}</td>
-        <td style="font-weight: 500;">${s.FirstName} ${s.LastName}</td>
-        <td>${s.Department}</td>
-        <td style="color: var(--danger-dark); font-weight: 500;">${s.Reason}</td>
-      `;
-      tbody.appendChild(tr);
-    });
+  if (tbody) {
+    tbody.innerHTML = "";
+    const failedSurveys = STATE.surveys.filter(s => s.Achieved === "ทำไม่ได้");
+    
+    if (failedSurveys.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="4" class="text-center" style="color: var(--text-muted);">ไม่มีข้อมูลสถิติเหตุผลที่ปฏิบัติไม่ได้ค่ะ</td></tr>`;
+    } else {
+      failedSurveys.forEach(s => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td style="font-family: var(--font-family-nums); font-weight: 600;">${s.EmployeeID}</td>
+          <td style="font-weight: 500;">${s.FirstName} ${s.LastName}</td>
+          <td>${s.Department}</td>
+          <td style="color: var(--danger-dark); font-weight: 500;">${s.Reason}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
   }
 
   // Populate Pending List table
@@ -986,7 +919,6 @@ function calculateStats() {
   if (pendingTbody) {
     pendingTbody.innerHTML = "";
     
-    // Find registered employee IDs
     const surveyEmpIds = STATE.surveys.map(s => String(s.EmployeeID).trim());
     const pendingParticipants = STATE.registrations.filter(r => !surveyEmpIds.includes(String(r.EmployeeID).trim()));
     
@@ -1018,10 +950,17 @@ function destroyChart(name) {
 function renderDashboardCharts() {
   calculateStats();
 
-  const ctxSubstance = document.getElementById("chart-substance").getContext("2d");
-  const ctxSuccess = document.getElementById("chart-success").getContext("2d");
-  const ctxShift = document.getElementById("chart-shift").getContext("2d");
-  const ctxDuration = document.getElementById("chart-duration").getContext("2d");
+  const canvasSubstance = document.getElementById("chart-substance");
+  const canvasSuccess = document.getElementById("chart-success");
+  const canvasShift = document.getElementById("chart-shift");
+  const canvasDuration = document.getElementById("chart-duration");
+
+  if (!canvasSubstance || !canvasSuccess || !canvasShift || !canvasDuration) return;
+
+  const ctxSubstance = canvasSubstance.getContext("2d");
+  const ctxSuccess = canvasSuccess.getContext("2d");
+  const ctxShift = canvasShift.getContext("2d");
+  const ctxDuration = canvasDuration.getContext("2d");
 
   // 1. Target Substance Breakdown
   let countsSub = { alcohol: 0, smoke: 0, both: 0 };
@@ -1142,12 +1081,10 @@ function renderDashboardCharts() {
    6. ADMIN PASSWORD FOR LUCKY WHEEL
    ========================================================================== */
 
-// Reset authentication on setting password change or load
 function setupLuckyDrawPage() {
   const container = document.getElementById("lucky-draw-container");
   if (container) container.style.display = "block";
   
-  // Filter eligible participants: Achieved === "ทำได้" and NOT already in winners
   updateEligibleList();
   renderWheel();
   renderWinnersList();
@@ -1155,30 +1092,12 @@ function setupLuckyDrawPage() {
 
 function updateEligibleList() {
   const winnerIds = STATE.winners.map(w => String(w.EmployeeID).trim());
-  
-  // Find survey completed users who replied "ทำได้"
   let successUsers = STATE.surveys.filter(s => s.Achieved === "ทำได้");
   
-  // Filter out those who already won
   STATE.eligibleForDraw = successUsers.filter(s => !winnerIds.includes(String(s.EmployeeID).trim()));
   
-  // If in Mock Mode and no success survey respondents, auto-fill with mock names so they can test immediately
-  if (STATE.apiSettings.isMockMode && STATE.eligibleForDraw.length === 0 && successUsers.length === 0) {
-    // Fill mock eligible participants
-    const mockSuccess = [
-      { EmployeeID: "0001", FirstName: "สมชาย", LastName: "รักดี", Department: "ฝ่ายผลิต" },
-      { EmployeeID: "0002", FirstName: "สมหญิง", LastName: "เรียนดี", Department: "ฝ่ายขาย" },
-      { EmployeeID: "0004", FirstName: "นภา", LastName: "สว่างไสว", Department: "บัญชี" },
-      { EmployeeID: "0026", FirstName: "สุพรรษา", LastName: "มะลิ", Department: "ฝ่ายบุคคล" },
-      { EmployeeID: "0005", FirstName: "วิรุฬห์", LastName: "ก้าวหน้า", Department: "คลังสินค้า" },
-      { EmployeeID: "0008", FirstName: "ศรัญญู", LastName: "เลิศล้ำ", Department: "ฝ่ายผลิต" }
-    ];
-    
-    // Filter out already won ones from mock success
-    STATE.eligibleForDraw = mockSuccess.filter(s => !winnerIds.includes(String(s.EmployeeID).trim()));
-  }
-  
-  document.getElementById("lucky-eligible-count").innerText = STATE.eligibleForDraw.length;
+  const eligibleCountEl = document.getElementById("lucky-eligible-count");
+  if (eligibleCountEl) eligibleCountEl.innerText = STATE.eligibleForDraw.length;
 }
 
 /* ==========================================================================
@@ -1194,6 +1113,7 @@ let wheelColors = [
 
 function renderWheel() {
   const canvas = document.getElementById("wheel-canvas");
+  if (!canvas) return;
   const ctx = canvas.getContext("2d");
   const width = canvas.width;
   const height = canvas.height;
@@ -1203,7 +1123,6 @@ function renderWheel() {
   
   const list = STATE.eligibleForDraw;
   
-  // If no eligible users, draw placeholder
   if (list.length === 0) {
     ctx.beginPath();
     ctx.arc(r, r, r - 10, 0, 2 * Math.PI);
@@ -1226,7 +1145,6 @@ function renderWheel() {
   for (let i = 0; i < list.length; i++) {
     const angle = wheelAngle + i * arcSize;
     
-    // Draw wedge segment
     ctx.beginPath();
     ctx.moveTo(r, r);
     ctx.arc(r, r, r - 10, angle, angle + arcSize);
@@ -1236,7 +1154,6 @@ function renderWheel() {
     ctx.strokeStyle = "#ffffff";
     ctx.stroke();
     
-    // Draw text (Employee ID + Name)
     ctx.save();
     ctx.translate(r, r);
     ctx.rotate(angle + arcSize / 2);
@@ -1248,7 +1165,6 @@ function renderWheel() {
     ctx.shadowOffsetX = 1;
     ctx.shadowOffsetY = 1;
     
-    // Adjust font size based on number of participants
     let fontSize = 14;
     if (list.length > 20) fontSize = 10;
     else if (list.length > 10) fontSize = 12;
@@ -1263,8 +1179,11 @@ function renderWheel() {
 
 // Lucky Draw Spin Control
 function initLuckyDrawSpin() {
-  document.getElementById("btn-spin-wheel").addEventListener("click", spinWheel);
-  document.getElementById("btn-reset-winners").addEventListener("click", resetWinners);
+  const spinBtn = document.getElementById("btn-spin-wheel");
+  if (spinBtn) spinBtn.addEventListener("click", spinWheel);
+  
+  const resetBtn = document.getElementById("btn-reset-winners");
+  if (resetBtn) resetBtn.addEventListener("click", resetWinners);
 }
 
 function spinWheel() {
@@ -1276,7 +1195,6 @@ function spinWheel() {
     return;
   }
 
-  // Cap winners list to 5
   if (STATE.winners.length >= 5) {
     alert("จับสลากครบกำหนด 5 รางวัลโครงการเรียบร้อยแล้วค่ะ! หากต้องการหมุนใหม่กรุณากด 'ล้างผลรางวัลใหม่'");
     return;
@@ -1284,31 +1202,23 @@ function spinWheel() {
 
   STATE.isSpinning = true;
   
-  // Generate random spins
-  const spinCount = 5 + Math.floor(Math.random() * 5); // 5 to 10 full spins
+  const spinCount = 5 + Math.floor(Math.random() * 5);
   const segmentArc = (2 * Math.PI) / list.length;
-  
-  // Pick random winner index
   const winnerIndex = Math.floor(Math.random() * list.length);
   
-  // Calculate target angle to align selected segment under the pointer (at 12 o'clock / -Math.PI/2)
-  // segment center angle = winnerIndex * segmentArc + segmentArc/2
-  // pointer angle = -Math.PI / 2 (or 3/2 * Math.PI)
-  // Target rotation angle = pointer_angle - segment_center_angle
   const targetSegmentAngle = winnerIndex * segmentArc + (segmentArc / 2);
   const finalAngle = (1.5 * Math.PI) - targetSegmentAngle + (spinCount * 2 * Math.PI);
   
   const startAngle = wheelAngle % (2 * Math.PI);
   const diffAngle = finalAngle - startAngle;
   
-  const duration = 5000; // 5 seconds spin animation
+  const duration = 5000;
   const startTime = performance.now();
   
   function animate(currentTime) {
     const elapsed = currentTime - startTime;
     const t = Math.min(elapsed / duration, 1);
     
-    // Easing out cubic: 1 - (1 - t)^3
     const factor = 1 - Math.pow(1 - t, 3);
     wheelAngle = startAngle + diffAngle * factor;
     
@@ -1317,7 +1227,6 @@ function spinWheel() {
     if (t < 1) {
       requestAnimationFrame(animate);
     } else {
-      // Completed spin!
       STATE.isSpinning = false;
       const winner = list[winnerIndex];
       handleWin(winner);
@@ -1332,9 +1241,9 @@ async function handleWin(winner) {
   triggerConfetti();
   
   const prizeOrder = STATE.winners.length + 1;
-  const rewardName = document.getElementById("draw-reward-name").value.trim() || `รางวัลนำโชค ลำดับที่ ${prizeOrder}`;
+  const rewardInput = document.getElementById("draw-reward-name");
+  const rewardName = (rewardInput ? rewardInput.value.trim() : "") || `รางวัลนำโชค ลำดับที่ ${prizeOrder}`;
   
-  // Look up goals/targets from registrations for full detail
   const reg = STATE.registrations.find(r => String(r.EmployeeID).trim() === winner.EmployeeID);
   const goal = reg ? reg.Goal : "เลิก";
   const target = reg ? reg.Target : "บุหรี่/สุรา";
@@ -1351,46 +1260,23 @@ async function handleWin(winner) {
     reward: rewardName
   };
 
-  if (STATE.apiSettings.isMockMode) {
-    winnerData.Timestamp = `${STATE.project.systemDate} 12:00:00`;
-    STATE.winners.push({
-      Timestamp: winnerData.Timestamp,
-      WinnerNo: winnerData.winnerNo,
-      EmployeeID: winner.EmployeeID,
-      FirstName: winner.FirstName,
-      LastName: winner.LastName,
-      Department: winner.Department,
-      Goal: goal,
-      Target: target,
-      Reward: rewardName
-    });
-    localStorage.setItem("mock_winners", JSON.stringify(STATE.winners));
-    
-    announceWinnerDialog(winner, prizeOrder, rewardName);
-    updateEligibleList();
-    renderWheel();
-    renderWinnersList();
-  } else {
-    // Online save to sheet
-    try {
-      const url = `${STATE.apiSettings.apiUrl}?action=saveWinnerJSONP&payload=${encodeURIComponent(JSON.stringify(winnerData))}`;
-      const response = await fetchJSONP(url);
-      if (response && response.success) {
-        await syncData();
-        announceWinnerDialog(winner, prizeOrder, rewardName);
-        updateEligibleList();
-        renderWheel();
-        renderWinnersList();
-      } else {
-        alert("บันทึกผู้ได้รับรางวัลลงชีตไม่สำเร็จ: " + (response.error || "เกิดข้อผิดพลาด"));
-      }
-    } catch (err) {
-      alert(err.message);
+  try {
+    const url = `${STATE.apiSettings.apiUrl}?action=saveWinnerJSONP&payload=${encodeURIComponent(JSON.stringify(winnerData))}`;
+    const response = await fetchJSONP(url);
+    if (response && response.success) {
+      await syncData();
+      announceWinnerDialog(winner, prizeOrder, rewardName);
+      updateEligibleList();
+      renderWheel();
+      renderWinnersList();
+    } else {
+      alert("บันทึกผู้ได้รับรางวัลลงชีตไม่สำเร็จ: " + (response.error || "เกิดข้อผิดพลาด"));
     }
+  } catch (err) {
+    alert(err.message);
   }
   
-  // Reset reward text field for next spin
-  document.getElementById("draw-reward-name").value = "";
+  if (rewardInput) rewardInput.value = "";
 }
 
 function announceWinnerDialog(winner, prizeOrder, rewardName) {
@@ -1399,57 +1285,52 @@ function announceWinnerDialog(winner, prizeOrder, rewardName) {
 
 // Render winners cards list
 function renderWinnersList() {
-  // Clear slots first
   for (let i = 1; i <= 5; i++) {
     const slot = document.querySelector(`.winner-slot-card[data-slot="${i}"]`);
-    slot.className = "winner-slot-card";
-    slot.querySelector(".slot-details").innerHTML = `<div class="slot-status">ว่าง - รอการสุ่มจับรางวัล...</div>`;
+    if (slot) {
+      slot.className = "winner-slot-card";
+      const details = slot.querySelector(".slot-details");
+      if (details) details.innerHTML = `<div class="slot-status">ว่าง - รอการสุ่มจับรางวัล...</div>`;
+    }
   }
   
-  // Fill with active winners
   STATE.winners.forEach((w, idx) => {
     const slotNum = idx + 1;
     const slot = document.querySelector(`.winner-slot-card[data-slot="${slotNum}"]`);
     if (slot) {
       slot.className = "winner-slot-card filled";
-      slot.querySelector(".slot-details").innerHTML = `
-        <div class="slot-winner-title">คุณ ${w.FirstName} ${w.LastName} (${w.EmployeeID})</div>
-        <div class="slot-winner-meta">แผนก: ${w.Department} | เป้าหมาย: ${w.Goal} ${w.Target}</div>
-        <div class="slot-winner-reward">🎁 ของรางวัล: ${w.Reward}</div>
-      `;
+      const details = slot.querySelector(".slot-details");
+      if (details) {
+        details.innerHTML = `
+          <div class="slot-winner-title">คุณ ${w.FirstName} ${w.LastName} (${w.EmployeeID})</div>
+          <div class="slot-winner-meta">แผนก: ${w.Department} | เป้าหมาย: ${w.Goal} ${w.Target}</div>
+          <div class="slot-winner-reward">🎁 ของรางวัล: ${w.Reward}</div>
+        `;
+      }
     }
   });
 }
 
-// Reset winners list (clear in Sheet / local)
+// Reset winners list (clear in Sheet)
 async function resetWinners() {
   if (!confirm("คุณต้องการล้างประวัติการได้รับรางวัลทั้งหมดและเริ่มจับสลากใหม่ ใช่หรือไม่? (ผู้ที่เคยจับรางวัลไปจะถูกดึงกลับมาลุ้นสลากได้อีกครั้ง)")) {
     return;
   }
   
-  if (STATE.apiSettings.isMockMode) {
-    STATE.winners = [];
-    localStorage.setItem("mock_winners", JSON.stringify(STATE.winners));
-    alert("รีเซ็ตสถิติผู้ได้รับรางวัลเพื่อจับใหม่เรียบร้อยแล้วค่ะ");
-    updateEligibleList();
-    renderWheel();
-    renderWinnersList();
-  } else {
-    try {
-      const url = `${STATE.apiSettings.apiUrl}?action=clearWinnersJSONP`;
-      const response = await fetchJSONP(url);
-      if (response && response.success) {
-        await syncData();
-        alert("รีเซ็ตสถิติผู้ได้รับรางวัลเพื่อเริ่มสุ่มใหม่สำเร็จเรียบร้อยค่ะ");
-        updateEligibleList();
-        renderWheel();
-        renderWinnersList();
-      } else {
-        alert("ไม่สามารถล้างข้อมูลในชีตได้: " + (response.error || "เกิดข้อผิดพลาด"));
-      }
-    } catch (err) {
-      alert(err.message);
+  try {
+    const url = `${STATE.apiSettings.apiUrl}?action=clearWinnersJSONP`;
+    const response = await fetchJSONP(url);
+    if (response && response.success) {
+      await syncData();
+      alert("รีเซ็ตสถิติผู้ได้รับรางวัลเพื่อเริ่มสุ่มใหม่สำเร็จเรียบร้อยค่ะ");
+      updateEligibleList();
+      renderWheel();
+      renderWinnersList();
+    } else {
+      alert("ไม่สามารถล้างข้อมูลในชีตได้: " + (response.error || "เกิดข้อผิดพลาด"));
     }
+  } catch (err) {
+    alert(err.message);
   }
 }
 
@@ -1459,6 +1340,7 @@ async function resetWinners() {
 
 function triggerConfetti() {
   const canvas = document.getElementById("confetti-canvas");
+  if (!canvas) return;
   const ctx = canvas.getContext("2d");
   
   canvas.width = window.innerWidth;
@@ -1482,7 +1364,7 @@ function triggerConfetti() {
   }
   
   let animationFrameId;
-  const duration = 4000; // particle fall duration
+  const duration = 4000;
   const startTime = Date.now();
   
   function draw() {
@@ -1524,7 +1406,7 @@ function triggerConfetti() {
 
 window.addEventListener('resize', () => {
   const canvas = document.getElementById("confetti-canvas");
-  if (canvas.width > 0) {
+  if (canvas && canvas.width > 0) {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
   }
