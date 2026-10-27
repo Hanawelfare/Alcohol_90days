@@ -133,6 +133,7 @@ function initSheets() {
     configSheet = ss.insertSheet("Config");
     configSheet.appendRow(["Key", "Value"]);
     configSheet.appendRow(["SurveyOpen", "false"]);
+    configSheet.appendRow(["RegistrationOpen", "true"]);
   }
   
   return "Initialization Complete!";
@@ -140,7 +141,7 @@ function initSheets() {
 
 // Get Config variables
 function getSystemConfig(sheet) {
-  if (!sheet) return { SurveyOpen: "false" };
+  if (!sheet) return { SurveyOpen: "false", RegistrationOpen: "true" };
   var data = sheet.getDataRange().getValues();
   var config = {};
   for (var i = 1; i < data.length; i++) {
@@ -148,6 +149,9 @@ function getSystemConfig(sheet) {
   }
   if (!config.hasOwnProperty("SurveyOpen")) {
     config.SurveyOpen = "false";
+  }
+  if (!config.hasOwnProperty("RegistrationOpen")) {
+    config.RegistrationOpen = "true";
   }
   return config;
 }
@@ -159,6 +163,7 @@ function handleSetSurveyStatus(ss, status) {
     sheet = ss.insertSheet("Config");
     sheet.appendRow(["Key", "Value"]);
     sheet.appendRow(["SurveyOpen", "false"]);
+    sheet.appendRow(["RegistrationOpen", "true"]);
   }
   var data = sheet.getDataRange().getValues();
   var rowIdx = -1;
@@ -172,6 +177,31 @@ function handleSetSurveyStatus(ss, status) {
     sheet.getRange(rowIdx, 2).setValue(status);
   } else {
     sheet.appendRow(["SurveyOpen", status]);
+  }
+  return { success: true, status: status };
+}
+
+// Update Registration Status in Sheet
+function handleSetRegistrationStatus(ss, status) {
+  var sheet = ss.getSheetByName("Config");
+  if (!sheet) {
+    sheet = ss.insertSheet("Config");
+    sheet.appendRow(["Key", "Value"]);
+    sheet.appendRow(["SurveyOpen", "false"]);
+    sheet.appendRow(["RegistrationOpen", "true"]);
+  }
+  var data = sheet.getDataRange().getValues();
+  var rowIdx = -1;
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][0] === "RegistrationOpen") {
+      rowIdx = i + 1;
+      break;
+    }
+  }
+  if (rowIdx !== -1) {
+    sheet.getRange(rowIdx, 2).setValue(status);
+  } else {
+    sheet.appendRow(["RegistrationOpen", status]);
   }
   return { success: true, status: status };
 }
@@ -247,6 +277,9 @@ function doGet(e) {
     } else if (action === "setSurveyStatusJSONP") {
       var status = e.parameter.status;
       responseData = handleSetSurveyStatus(ss, status);
+    } else if (action === "setRegistrationStatusJSONP") {
+      var status = e.parameter.status;
+      responseData = handleSetRegistrationStatus(ss, status);
     } else {
       responseData = { success: false, error: "Invalid GET Action" };
     }
@@ -297,6 +330,12 @@ function doPost(e) {
 function handleRegister(ss, postData) {
   var sheet = ss.getSheetByName("Registrations");
   var empId = postData.employeeId.toString().trim();
+  
+  // Check if registration is open
+  var config = getSystemConfig(ss.getSheetByName("Config"));
+  if (config.RegistrationOpen === "false") {
+    return { success: false, error: "ระบบปิดรับลงทะเบียนเข้าร่วมโครงการเรียบร้อยแล้วค่ะ" };
+  }
   
   // Format with leading quote to preserve leading zero
   var formattedEmpId = "'" + empId;
