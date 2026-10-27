@@ -110,7 +110,20 @@
           <p class="subtitle">ลด ละ เลิก บุหรี่และแอลกอฮอล์ เพื่อสุขภาพกายและใจที่ดีขึ้น</p>
         </div>
 
-        <div class="card">
+        <!-- Registration Constraint Alert Banner -->
+        <div id="reg-status-warning" class="alert alert-warning" style="margin-bottom: 2rem; display: none;">
+          <div class="flex flex-col gap-2">
+            <div class="flex align-center gap-2">
+              <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <strong>สถานะระบบลงทะเบียน:</strong>
+            </div>
+            <p id="reg-status-desc" style="margin: 0; font-size: 0.9rem;">
+              🔒 <strong>แจ้งเตือนจากโครงการ:</strong> ระบบปิดรับลงทะเบียนเข้าร่วมโครงการเรียบร้อยแล้ว ขอขอบคุณทุกท่านที่ให้ความสนใจ หากมีข้อสงสัยหรือต้องการสอบถามเพิ่มเติม กรุณาติดต่อเจ้าหน้าที่โครงการค่ะ
+            </p>
+          </div>
+        </div>
+
+        <div id="register-form-container" class="card">
           <!-- Card Decorative Header -->
           <div class="card-deco-bar"></div>
           
@@ -184,11 +197,11 @@
               <label class="form-label">เป้าหมายโครงการ *</label>
               <div class="radio-group-container col-2">
                 <label class="radio-card">
-                  <input type="radio" name="reg-goal" value="งด" checked>
+                  <input type="radio" name="reg-goal" value="ลด" checked>
                   <span class="radio-design font-gold"></span>
                   <div class="radio-label-wrapper">
-                    <span class="radio-label-title">1. งด (Reduce)</span>
-                    <span class="radio-label-desc">งดปริมาณการสูบ/ดื่มลงตามระยะเวลา</span>
+                    <span class="radio-label-title">1. ลด (Reduce)</span>
+                    <span class="radio-label-desc">ลดปริมาณการเสพ/ดื่มลงจากเดิม</span>
                   </div>
                 </label>
                 <label class="radio-card">
@@ -196,7 +209,7 @@
                   <span class="radio-design font-emerald"></span>
                   <div class="radio-label-wrapper">
                     <span class="radio-label-title">2. เลิก (Quit)</span>
-                    <span class="radio-label-desc">เลิกดื่ม/เลิกสูบ ตลอดชีวิต</span>
+                    <span class="radio-label-desc">หักดิบ งดเว้นโดยเด็ดขาด 100%</span>
                   </div>
                 </label>
               </div>
@@ -253,7 +266,7 @@
 
             <!-- Submit Button -->
             <div class="form-actions">
-              <button type="submit" class="btn btn-emerald btn-lg btn-block">ยืนยันลงทะเบียนเข้าร่วมโครงการ</button>
+              <button type="submit" id="btn-submit-register" class="btn btn-emerald btn-lg btn-block">ยืนยันลงทะเบียนเข้าร่วมโครงการ</button>
             </div>
 
           </form>
@@ -378,7 +391,7 @@
             <input type="password" id="admin-input-pw" placeholder="กรอกรหัสผ่านเพื่อเข้าใช้งาน" style="text-align: center;">
           </div>
           <button type="button" id="btn-login-admin" class="btn btn-primary btn-block">ยืนยันรหัสผ่าน</button>
-          <small style="color: var(--text-muted); margin-top: 10px; display: block;">(กรุณาระบุรหัสผ่าน)</small>
+          <small style="color: var(--text-muted); margin-top: 10px; display: block;">(รหัสผ่านคือ: ad2026)</small>
         </div>
 
         <!-- Admin Content Area (shows after login) -->
@@ -548,11 +561,21 @@
                   <div class="wheel-inner-hub">GO!</div>
                 </div>
                 <div class="wheel-control-actions">
-                  <div class="form-group" style="margin-bottom: 1rem; width: 100%;">
-                    <label for="draw-reward-name" class="form-label">ชื่อของรางวัลที่จะสุ่ม (ระบุเพิ่มเติมเพื่อลงชีต)</label>
-                    <input type="text" id="draw-reward-name" placeholder="ระบุของรางวัล เช่น พัดลม Hatari 16 นิ้ว หรือ รางวัลที่ 1">
+                  <!-- Current Round Target Prize Banner -->
+                  <div class="current-draw-card" id="current-draw-card" style="margin-bottom: 1.2rem; padding: 16px; border-radius: var(--radius-md); background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border: 2px solid var(--primary-color); box-shadow: var(--shadow-sm); text-align: center;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                      <span class="badge badge-gold" id="current-round-badge" style="font-size: 0.8rem; font-weight: 700;">🎯 รอบสุ่มที่ 1 จาก 5</span>
+                      <span id="current-order-badge" style="font-size: 0.75rem; color: #92400e; font-weight: 600; background: rgba(245, 158, 11, 0.2); padding: 2px 8px; border-radius: 12px;">สุ่มจากรางวัลที่ 1 ➔ 5</span>
+                    </div>
+                    <div style="font-size: 0.85rem; color: #78350f; margin-bottom: 2px;">ของรางวัลประจำรอบนี้:</div>
+                    <div id="current-draw-prize-display" style="font-size: 1.25rem; font-weight: 700; color: #b45309; line-height: 1.4;">
+                      รางวัลที่ 1: ตู้เย็น 2 ประตู / สมาร์ททีวี
+                    </div>
                   </div>
-                  <button type="button" id="btn-spin-wheel" class="btn btn-gold btn-lg btn-block font-bold">🎯 หมุนวงล้อสุ่มจับรางวัล</button>
+
+                  <button type="button" id="btn-spin-wheel" class="btn btn-gold btn-lg btn-block font-bold" style="font-size: 1.15rem; padding: 14px 20px;">
+                    🎯 หมุนวงล้อสุ่มจับรางวัล
+                  </button>
                 </div>
               </div>
 
@@ -565,41 +588,97 @@
                   <div style="font-size: 0.8rem; color: var(--gray-text); margin-top: 4px;">คน ที่ทำแบบประเมินผ่านเกณฑ์โครงการสำเร็จ</div>
                 </div>
 
-                <!-- Winners List (5 Slots) -->
+                <!-- 5 Prizes Setup & Winners List -->
                 <div class="card mt-3">
                   <div class="flex justify-between align-center" style="border-bottom: 1px solid var(--border-color); padding-bottom: 8px; margin-bottom: 12px;">
-                    <h3 style="margin: 0;">🏆 ทำเนียบผู้โชคดี (5 รางวัล)</h3>
-                    <button type="button" id="btn-reset-winners" class="btn btn-danger btn-sm">ล้างผลรางวัลใหม่</button>
+                    <h3 style="margin: 0; font-size: 1rem;">🎁 รายการของรางวัล & ผู้โชคดี (5 รางวัล)</h3>
+                    <div style="display: flex; gap: 6px;">
+                      <button type="button" id="btn-toggle-edit-prizes" class="btn btn-primary btn-sm" style="font-size: 0.75rem; padding: 4px 8px;">✏️ แก้ไขชื่อรางวัล</button>
+                      <button type="button" id="btn-reset-winners" class="btn btn-danger btn-sm" style="font-size: 0.75rem; padding: 4px 8px;">ล้างผลรางวัล</button>
+                    </div>
                   </div>
-                  
+
+                  <!-- Draw Sequence Radio Selector -->
+                  <div style="background: rgba(0,0,0,0.02); padding: 10px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 14px;">
+                    <div style="font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; color: var(--text-main);">🔄 เลือกลำดับการสุ่มจับรางวัล:</div>
+                    <div style="display: flex; flex-direction: column; gap: 6px; font-size: 0.85rem;">
+                      <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="radio" name="draw-sequence" value="asc" checked>
+                        <span><strong>รางวัลที่ 1 ➔ 5</strong> (ทุกคนได้ลุ้นรางวัลใหญ่พร้อมกันในรอบแรก 🎉)</span>
+                      </label>
+                      <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="radio" name="draw-sequence" value="desc">
+                        <span><strong>รางวัลที่ 5 ➔ 1</strong> (เริ่มจากรางวัลเล็ก ลุ้นรางวัลใหญ่รอบสุดท้าย 🏆)</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <!-- Editable 5 Prizes Input Box (Accordion/Toggle) -->
+                  <div id="prize-edit-box" style="display: none; background: #f8fafc; border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 14px; margin-bottom: 14px;">
+                    <div style="font-size: 0.85rem; font-weight: 600; margin-bottom: 8px; color: var(--text-main);">
+                      ระบุชื่อของรางวัลทั้ง 5 รายการ (พิมพ์แก้ไขแล้วกดบันทึกได้ทันทีค่ะ):
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="min-width: 75px; font-weight: 600; font-size: 0.85rem; color: #b45309;">รางวัลที่ 1:</span>
+                        <input type="text" id="prize-input-1" class="form-control" style="flex: 1; padding: 6px 10px; font-size: 0.85rem; border: 1px solid var(--border-color); border-radius: 4px;" placeholder="ระบุของรางวัลที่ 1">
+                      </div>
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="min-width: 75px; font-weight: 600; font-size: 0.85rem; color: #b45309;">รางวัลที่ 2:</span>
+                        <input type="text" id="prize-input-2" class="form-control" style="flex: 1; padding: 6px 10px; font-size: 0.85rem; border: 1px solid var(--border-color); border-radius: 4px;" placeholder="ระบุของรางวัลที่ 2">
+                      </div>
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="min-width: 75px; font-weight: 600; font-size: 0.85rem; color: #b45309;">รางวัลที่ 3:</span>
+                        <input type="text" id="prize-input-3" class="form-control" style="flex: 1; padding: 6px 10px; font-size: 0.85rem; border: 1px solid var(--border-color); border-radius: 4px;" placeholder="ระบุของรางวัลที่ 3">
+                      </div>
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="min-width: 75px; font-weight: 600; font-size: 0.85rem; color: #b45309;">รางวัลที่ 4:</span>
+                        <input type="text" id="prize-input-4" class="form-control" style="flex: 1; padding: 6px 10px; font-size: 0.85rem; border: 1px solid var(--border-color); border-radius: 4px;" placeholder="ระบุของรางวัลที่ 4">
+                      </div>
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="min-width: 75px; font-weight: 600; font-size: 0.85rem; color: #b45309;">รางวัลที่ 5:</span>
+                        <input type="text" id="prize-input-5" class="form-control" style="flex: 1; padding: 6px 10px; font-size: 0.85rem; border: 1px solid var(--border-color); border-radius: 4px;" placeholder="ระบุของรางวัลที่ 5">
+                      </div>
+                    </div>
+                    <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px;">
+                      <button type="button" id="btn-save-prizes" class="btn btn-emerald btn-sm font-bold">💾 บันทึกชื่อรางวัล</button>
+                    </div>
+                  </div>
+
+                  <!-- 5 Winners Slots List -->
                   <div class="winners-list-slots">
                     <div class="winner-slot-card" data-slot="1">
                       <div class="slot-num bg-gold">1</div>
                       <div class="slot-details">
+                        <div class="slot-reward-badge" style="font-weight: 600; color: #b45309; font-size: 0.85rem;">🎁 รางวัลที่ 1</div>
                         <div class="slot-status">ว่าง - รอการสุ่มจับรางวัล...</div>
                       </div>
                     </div>
                     <div class="winner-slot-card" data-slot="2">
                       <div class="slot-num bg-gold">2</div>
                       <div class="slot-details">
+                        <div class="slot-reward-badge" style="font-weight: 600; color: #b45309; font-size: 0.85rem;">🎁 รางวัลที่ 2</div>
                         <div class="slot-status">ว่าง - รอการสุ่มจับรางวัล...</div>
                       </div>
                     </div>
                     <div class="winner-slot-card" data-slot="3">
                       <div class="slot-num bg-gold">3</div>
                       <div class="slot-details">
+                        <div class="slot-reward-badge" style="font-weight: 600; color: #b45309; font-size: 0.85rem;">🎁 รางวัลที่ 3</div>
                         <div class="slot-status">ว่าง - รอการสุ่มจับรางวัล...</div>
                       </div>
                     </div>
                     <div class="winner-slot-card" data-slot="4">
                       <div class="slot-num bg-gold">4</div>
                       <div class="slot-details">
+                        <div class="slot-reward-badge" style="font-weight: 600; color: #b45309; font-size: 0.85rem;">🎁 รางวัลที่ 4</div>
                         <div class="slot-status">ว่าง - รอการสุ่มจับรางวัล...</div>
                       </div>
                     </div>
                     <div class="winner-slot-card" data-slot="5">
                       <div class="slot-num bg-gold">5</div>
                       <div class="slot-details">
+                        <div class="slot-reward-badge" style="font-weight: 600; color: #b45309; font-size: 0.85rem;">🎁 รางวัลที่ 5</div>
                         <div class="slot-status">ว่าง - รอการสุ่มจับรางวัล...</div>
                       </div>
                     </div>
@@ -660,6 +739,23 @@
                   <button type="button" id="btn-clear-storage" class="btn btn-danger">🗑️ ล้างข้อมูล LocalStorage</button>
                 </div>
               </form>
+            </div>
+
+            <!-- Central Registration Lock Control Card -->
+            <div class="card mt-4">
+              <div class="card-deco-bar bg-emerald"></div>
+              <h2>📝 ควบคุมระบบลงทะเบียนเข้าร่วมโครงการ (แผงควบคุมกลาง)</h2>
+              <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.5rem;">
+                แอดมินโครงการสามารถคลิกเปิดหรือปิดระบบรับลงทะเบียนเข้าร่วมโครงการได้จากตรงนี้ เมื่อปิดระบบ พนักงานทั่วไปจะไม่สามารถกรอกข้อมูลลงทะเบียนได้
+              </p>
+              
+              <div class="flex align-center gap-3" style="background: rgba(0,0,0,0.02); padding: 16px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); width: fit-content; min-width: 320px;">
+                <label class="toggle-switch">
+                  <input type="checkbox" id="admin-reg-status-toggle" checked>
+                  <span class="slider"></span>
+                </label>
+                <span id="admin-reg-status-label" style="font-weight: 600; font-size: 0.95rem; color: var(--success-dark);">🟢 เปิดระบบรับลงทะเบียน (พนักงานสามารถลงทะเบียนได้)</span>
+              </div>
             </div>
 
             <!-- Central Survey Lock Control Card -->
