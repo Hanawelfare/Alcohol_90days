@@ -17,10 +17,19 @@ const STATE = {
   project: {
     adminPassword: "ad2026",
     systemDate: new Date().toLocaleDateString('en-CA'), // Dynamically fetch today's local date in YYYY-MM-DD format
-    targetCompletionDate: "2026-08-26" // 3-month completion date (Buddhist Lent End)
+    targetCompletionDate: "2026-08-26", // 3-month completion date (Buddhist Lent End)
+    prizes: [
+      "รางวัลที่ 1: ตู้เย็น 2 ประตู หรือ สมาร์ททีวี",
+      "รางวัลที่ 2: ไมโครเวฟดิจิตอล",
+      "รางวัลที่ 3: พัดลม Hatari 16 นิ้ว",
+      "รางวัลที่ 4: หม้อทอดไร้น้ำมัน",
+      "รางวัลที่ 5: กาต้มน้ำไฟฟ้าสแตนเลส"
+    ],
+    drawSequence: "asc" // "asc" (1 -> 5) or "desc" (5 -> 1)
   },
   config: {
-    SurveyOpen: "false" // Central lock controlled by Google Sheets Config sheet
+    SurveyOpen: "false", // Central lock controlled by Google Sheets Config sheet
+    RegistrationOpen: "true" // Central registration lock controlled by Google Sheets Config sheet
   },
   employees: [], // Master database
   registrations: [], // Registered participants
@@ -110,6 +119,24 @@ function loadSettings() {
   
   toggleApiUrlField();
   updateModeBadges();
+  loadLuckyPrizes();
+}
+
+function loadLuckyPrizes() {
+  const savedPrizes = localStorage.getItem("lent_lucky_prizes");
+  if (savedPrizes) {
+    try {
+      const parsed = JSON.parse(savedPrizes);
+      if (Array.isArray(parsed) && parsed.length === 5) {
+        STATE.project.prizes = parsed;
+      }
+    } catch (e) {}
+  }
+
+  const savedSeq = localStorage.getItem("lent_lucky_draw_seq");
+  if (savedSeq === "asc" || savedSeq === "desc") {
+    STATE.project.drawSequence = savedSeq;
+  }
 }
 
 // Toggle display of API URL field depending on mode
@@ -271,6 +298,12 @@ function initAdminEvents() {
     });
   }
 
+  // Registration central lock control listener
+  const regToggle = document.getElementById("admin-reg-status-toggle");
+  if (regToggle) {
+    regToggle.addEventListener("change", handleAdminRegToggle);
+  }
+
   // Survey central lock control listener
   const surveyToggle = document.getElementById("admin-survey-status-toggle");
   if (surveyToggle) {
@@ -296,23 +329,33 @@ function handleAdminLogin() {
    ========================================================================== */
 
 // Helper function for JSONP requests to bypass CORS
-function fetchJSONP(url) {
+function fetchJSONP(url, timeoutMs = 7000) {
   showLoader(true);
   return new Promise((resolve, reject) => {
     const callbackName = 'jsonp_cb_' + Math.floor(Math.random() * 1000000);
     const script = document.createElement("script");
-    
-    // Add callback handler to window
-    window[callbackName] = function(data) {
-      resolve(data);
-      cleanup();
-    };
+    let isFinished = false;
     
     function cleanup() {
+      if (isFinished) return;
+      isFinished = true;
+      if (timeoutId) clearTimeout(timeoutId);
       if (script.parentNode) script.parentNode.removeChild(script);
       delete window[callbackName];
       showLoader(false);
     }
+    
+    // Add callback handler to window
+    window[callbackName] = function(data) {
+      cleanup();
+      resolve(data);
+    };
+    
+    // Timeout handler
+    const timeoutId = setTimeout(() => {
+      cleanup();
+      reject(new Error("การเชื่อมต่อหมดเวลา (Timeout)"));
+    }, timeoutMs);
     
     // Append parameters
     const urlObj = new URL(url);
@@ -320,8 +363,8 @@ function fetchJSONP(url) {
     
     script.src = urlObj.toString();
     script.onerror = () => {
-      reject(new Error("การเชื่อมต่อระบบล้มเหลว กรุณาตรวจสอบอินเทอร์เน็ตหรือ Web App URL"));
       cleanup();
+      reject(new Error("การเชื่อมต่อระบบล้มเหลว กรุณาตรวจสอบอินเทอร์เน็ตหรือ Web App URL"));
     };
     
     document.body.appendChild(script);
@@ -339,8 +382,10 @@ async function syncData() {
   }
   
   if (!STATE.apiSettings.apiUrl) {
-    alert("กรุณากรอกลิ้งค์ Web App URL ในหน้าการตั้งค่าระบบเพื่อเชื่อมต่อ Google Sheet");
-    switchTab("settings-page");
+    console.warn("ไม่พบ Web App URL กำลังเปิดโหมดจำลอง");
+    loadMockData();
+    updateModeBadges();
+    calculateStats();
     return;
   }
   
@@ -356,6 +401,11 @@ async function syncData() {
         STATE.config = response.data.config;
       }
       
+      // Update registration page availability and admin toggle state based on central config
+      const isRegOpen = STATE.config.RegistrationOpen !== "false";
+      updateRegistrationAvailability(isRegOpen);
+      updateAdminRegToggleUI(isRegOpen);
+
       // Update survey page availability and admin toggle state based on central config
       const isOpen = STATE.config.SurveyOpen === "true";
       updateSurveyAvailability(isOpen);
@@ -364,10 +414,16 @@ async function syncData() {
       calculateStats();
       updateModeBadges();
     } else {
-      alert("ไม่สามารถดึงข้อมูลได้: " + (response.error || "เกิดข้อผิดพลาดไม่ทราบสาเหตุ"));
+      console.warn("API response error:", response ? response.error : "Unknown error");
+      loadMockData();
+      calculateStats();
     }
   } catch (err) {
-    alert(err.message);
+    console.warn("syncData connection issue, fallback to mock data:", err.message);
+    loadMockData();
+    calculateStats();
+  } finally {
+    showLoader(false);
   }
 }
 
@@ -403,6 +459,15 @@ function loadMockData() {
     localStorage.setItem("mock_winners", JSON.stringify(STATE.winners));
   }
 
+  // Load mock registration config
+  const savedRegConfig = localStorage.getItem("mock_config_registration_open");
+  if (savedRegConfig) {
+    STATE.config.RegistrationOpen = savedRegConfig;
+  } else {
+    STATE.config.RegistrationOpen = "true";
+    localStorage.setItem("mock_config_registration_open", "true");
+  }
+
   // Load mock config
   const savedConfig = localStorage.getItem("mock_config_survey_open");
   if (savedConfig) {
@@ -412,6 +477,10 @@ function loadMockData() {
     localStorage.setItem("mock_config_survey_open", "false");
   }
   
+  const isRegOpen = STATE.config.RegistrationOpen !== "false";
+  updateRegistrationAvailability(isRegOpen);
+  updateAdminRegToggleUI(isRegOpen);
+
   const isOpen = STATE.config.SurveyOpen === "true";
   updateSurveyAvailability(isOpen);
   updateAdminSurveyToggleUI(isOpen);
@@ -628,6 +697,11 @@ function disableSurveyFormInputs(disabled) {
 async function handleRegisterFormSubmit(e) {
   e.preventDefault();
   
+  if (STATE.config.RegistrationOpen === "false") {
+    alert("ระบบปิดรับลงทะเบียนเข้าร่วมโครงการเรียบร้อยแล้วค่ะ");
+    return;
+  }
+
   const empId = document.getElementById("reg-empid").value.trim();
   const firstName = document.getElementById("reg-firstname").value.trim();
   const lastName = document.getElementById("reg-lastname").value.trim();
@@ -850,8 +924,101 @@ function initDateCheck() {
     systemDateDisplay.innerText = formatDateThai(STATE.project.systemDate);
   }
   
-  // Perform survey lock check initially based on state
+  // Perform locks check initially based on state
+  updateRegistrationAvailability(STATE.config.RegistrationOpen !== "false");
   updateSurveyAvailability(STATE.config.SurveyOpen === "true");
+}
+
+function updateRegistrationAvailability(enable) {
+  const container = document.getElementById("register-form-container");
+  if (!container) return;
+  const warn = document.getElementById("reg-status-warning");
+  const inputEl = document.getElementById("reg-empid");
+  const searchBtn = document.getElementById("btn-search-employee");
+  const phoneInput = document.getElementById("reg-phone");
+  const submitBtn = document.getElementById("btn-submit-register");
+  const radios = container.querySelectorAll('input[type="radio"]');
+  
+  if (enable) {
+    container.classList.remove("disabled-container");
+    if (inputEl) inputEl.disabled = false;
+    if (searchBtn) searchBtn.disabled = false;
+    if (phoneInput) phoneInput.disabled = false;
+    if (submitBtn) submitBtn.disabled = false;
+    radios.forEach(r => r.disabled = false);
+    if (warn) warn.style.display = "none";
+  } else {
+    container.classList.add("disabled-container");
+    if (inputEl) inputEl.disabled = true;
+    if (searchBtn) searchBtn.disabled = true;
+    if (phoneInput) phoneInput.disabled = true;
+    if (submitBtn) submitBtn.disabled = true;
+    radios.forEach(r => r.disabled = true);
+    if (warn) warn.style.display = "block";
+    
+    // Clear form if closed
+    const form = document.getElementById("register-form");
+    if (form) form.reset();
+    const fn = document.getElementById("reg-firstname");
+    const ln = document.getElementById("reg-lastname");
+    const dept = document.getElementById("reg-department");
+    if (fn) fn.value = "";
+    if (ln) ln.value = "";
+    if (dept) dept.value = "";
+    const regMsgBox = document.getElementById("reg-msg-box");
+    if (regMsgBox) regMsgBox.style.display = "none";
+  }
+}
+
+async function handleAdminRegToggle(e) {
+  const open = e.target.checked;
+  const statusStr = open ? "true" : "false";
+  
+  // Update status label instantly in UI
+  updateAdminRegToggleUI(open);
+  
+  if (STATE.apiSettings.isMockMode) {
+    STATE.config.RegistrationOpen = statusStr;
+    localStorage.setItem("mock_config_registration_open", statusStr);
+    updateRegistrationAvailability(open);
+    alert("บันทึกการเปิด/ปิดสิทธิ์ลงทะเบียนในโหมดจำลองสำเร็จ!");
+  } else {
+    try {
+      showLoader(true);
+      const url = `${STATE.apiSettings.apiUrl}?action=setRegistrationStatusJSONP&status=${statusStr}`;
+      const response = await fetchJSONP(url);
+      if (response && response.success) {
+        STATE.config.RegistrationOpen = statusStr;
+        updateRegistrationAvailability(open);
+        alert("อัปเดตสิทธิ์การลงทะเบียนไปยัง Google Sheets สำเร็จ!");
+      } else {
+        alert("เกิดข้อผิดพลาดในการบันทึกค่า: " + (response.error || "ไม่สามารถเชื่อมต่อได้"));
+        e.target.checked = !open; // Revert checkbox state
+        updateAdminRegToggleUI(!open);
+      }
+    } catch (err) {
+      alert("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์: " + err.message);
+      e.target.checked = !open; // Revert
+      updateAdminRegToggleUI(!open);
+    } finally {
+      showLoader(false);
+    }
+  }
+}
+
+function updateAdminRegToggleUI(open) {
+  const label = document.getElementById("admin-reg-status-label");
+  const regToggle = document.getElementById("admin-reg-status-toggle");
+  if (regToggle) regToggle.checked = open;
+  if (label) {
+    if (open) {
+      label.innerText = "🟢 เปิดระบบรับลงทะเบียนแล้ว (พนักงานสามารถลงทะเบียนได้)";
+      label.style.color = "var(--success-dark)";
+    } else {
+      label.innerText = "🔴 ปิดระบบรับลงทะเบียน (พนักงานลงทะเบียนไม่ได้)";
+      label.style.color = "var(--danger-dark)";
+    }
+  }
 }
 
 function updateSurveyAvailability(enable) {
@@ -1169,7 +1336,7 @@ function setupLuckyDrawPage() {
   // Filter eligible participants: Achieved === "ทำได้" and NOT already in winners
   updateEligibleList();
   renderWheel();
-  renderWinnersList();
+  updateLuckyDrawUI();
 }
 
 function updateEligibleList() {
@@ -1284,6 +1451,151 @@ function renderWheel() {
 function initLuckyDrawSpin() {
   document.getElementById("btn-spin-wheel").addEventListener("click", spinWheel);
   document.getElementById("btn-reset-winners").addEventListener("click", resetWinners);
+
+  // Toggle prize edit box
+  const toggleEditBtn = document.getElementById("btn-toggle-edit-prizes");
+  if (toggleEditBtn) {
+    toggleEditBtn.addEventListener("click", () => {
+      const box = document.getElementById("prize-edit-box");
+      const isHidden = box.style.display === "none" || !box.style.display;
+      box.style.display = isHidden ? "block" : "none";
+      toggleEditBtn.innerText = isHidden ? "❌ ปิดการแก้ไข" : "✏️ แก้ไขชื่อรางวัล";
+    });
+  }
+
+  // Save customized prizes button
+  const savePrizesBtn = document.getElementById("btn-save-prizes");
+  if (savePrizesBtn) {
+    savePrizesBtn.addEventListener("click", () => {
+      for (let i = 1; i <= 5; i++) {
+        const inputEl = document.getElementById(`prize-input-${i}`);
+        if (inputEl && inputEl.value.trim()) {
+          STATE.project.prizes[i - 1] = inputEl.value.trim();
+        }
+      }
+      localStorage.setItem("lent_lucky_prizes", JSON.stringify(STATE.project.prizes));
+      alert("บันทึกรายการของรางวัลทั้ง 5 รายการเรียบร้อยแล้วค่ะ!");
+      document.getElementById("prize-edit-box").style.display = "none";
+      document.getElementById("btn-toggle-edit-prizes").innerText = "✏️ แก้ไขชื่อรางวัล";
+      updateLuckyDrawUI();
+    });
+  }
+
+  // Sequence radio change listener
+  const seqRadios = document.getElementsByName("draw-sequence");
+  for (let r of seqRadios) {
+    r.addEventListener("change", (e) => {
+      STATE.project.drawSequence = e.target.value;
+      localStorage.setItem("lent_lucky_draw_seq", e.target.value);
+      updateLuckyDrawUI();
+    });
+  }
+}
+
+// Get information about current prize to draw based on sequence and already-drawn winners
+function getCurrentPrizeInfo() {
+  const claimedPrizeNumbers = STATE.winners.map(w => {
+    const match = (w.WinnerNo || "").match(/รางวัลที่\s*(\d+)/);
+    return match ? parseInt(match[1], 10) : null;
+  }).filter(Boolean);
+
+  const totalPrizes = 5;
+  const isComplete = claimedPrizeNumbers.length >= totalPrizes;
+  
+  if (isComplete) {
+    return {
+      isComplete: true,
+      roundNumber: totalPrizes,
+      prizeNumber: null,
+      prizeLabel: "ครบกำหนด 5 รางวัลแล้ว",
+      prizeName: "สุ่มจับรางวัลครบทั้ง 5 รางวัลเรียบร้อยแล้วค่ะ"
+    };
+  }
+
+  // Desired order sequence
+  let sequenceList = [1, 2, 3, 4, 5]; // "asc": 1 -> 5
+  if (STATE.project.drawSequence === "desc") {
+    sequenceList = [5, 4, 3, 2, 1]; // "desc": 5 -> 1
+  }
+
+  // Find the first prizeNumber in the sequence that has NOT been claimed yet
+  let nextPrizeNumber = sequenceList.find(num => !claimedPrizeNumbers.includes(num));
+  if (!nextPrizeNumber) nextPrizeNumber = sequenceList[0];
+
+  const roundNumber = claimedPrizeNumbers.length + 1;
+  const prizeIndex = nextPrizeNumber - 1; // 0-based
+  const prizeLabel = `รางวัลที่ ${nextPrizeNumber}`;
+  const prizeName = STATE.project.prizes[prizeIndex] || `รางวัลที่ ${nextPrizeNumber}`;
+
+  return {
+    isComplete: false,
+    roundNumber: roundNumber,
+    prizeNumber: nextPrizeNumber,
+    prizeIndex: prizeIndex,
+    prizeLabel: prizeLabel,
+    prizeName: prizeName
+  };
+}
+
+// Update Lucky Draw UI banners, active slot, and button labels
+function updateLuckyDrawUI() {
+  const info = getCurrentPrizeInfo();
+  const roundBadge = document.getElementById("current-round-badge");
+  const orderBadge = document.getElementById("current-order-badge");
+  const prizeDisplay = document.getElementById("current-draw-prize-display");
+  const spinBtn = document.getElementById("btn-spin-wheel");
+
+  // Sync radio buttons
+  const radios = document.getElementsByName("draw-sequence");
+  for (let r of radios) {
+    r.checked = (r.value === STATE.project.drawSequence);
+  }
+
+  if (orderBadge) {
+    orderBadge.innerText = STATE.project.drawSequence === "asc"
+      ? "สุ่มจากรางวัลที่ 1 ➔ 5"
+      : "สุ่มจากรางวัลที่ 5 ➔ 1";
+  }
+
+  if (info.isComplete) {
+    if (roundBadge) {
+      roundBadge.className = "badge badge-success font-bold";
+      roundBadge.innerText = "🎉 สุ่มครบ 5/5 รางวัลแล้ว";
+    }
+    if (prizeDisplay) {
+      prizeDisplay.innerHTML = `<span style="color: var(--success-dark);">🏆 ขอแสดงความยินดีกับผู้โชคดีทั้ง 5 ท่านค่ะ!</span>`;
+    }
+    if (spinBtn) {
+      spinBtn.innerText = "🏆 สุ่มจับรางวัลครบทั้ง 5 รางวัลแล้ว";
+      spinBtn.disabled = true;
+      spinBtn.style.opacity = "0.7";
+      spinBtn.style.cursor = "not-allowed";
+    }
+  } else {
+    if (roundBadge) {
+      roundBadge.className = "badge badge-gold font-bold";
+      roundBadge.innerText = `🎯 รอบสุ่มที่ ${info.roundNumber} จาก 5`;
+    }
+    if (prizeDisplay) {
+      prizeDisplay.innerText = `${info.prizeLabel}: ${info.prizeName}`;
+    }
+    if (spinBtn) {
+      spinBtn.disabled = false;
+      spinBtn.style.opacity = "1";
+      spinBtn.style.cursor = "pointer";
+      spinBtn.innerText = `🎯 หมุนวงล้อสุ่ม [${info.prizeLabel}]`;
+    }
+  }
+
+  // Populate input fields in the edit box
+  for (let i = 1; i <= 5; i++) {
+    const input = document.getElementById(`prize-input-${i}`);
+    if (input && STATE.project.prizes[i - 1]) {
+      input.value = STATE.project.prizes[i - 1];
+    }
+  }
+
+  renderWinnersList();
 }
 
 function spinWheel() {
@@ -1297,7 +1609,7 @@ function spinWheel() {
 
   // Cap winners list to 5
   if (STATE.winners.length >= 5) {
-    alert("จับสลากครบกำหนด 5 รางวัลโครงการเรียบร้อยแล้วค่ะ! หากต้องการหมุนใหม่กรุณากด 'ล้างผลรางวัลใหม่'");
+    alert("จับสลากครบกำหนด 5 รางวัลโครงการเรียบร้อยแล้วค่ะ! หากต้องการหมุนใหม่กรุณากด 'ล้างผลรางวัล'");
     return;
   }
 
@@ -1311,9 +1623,6 @@ function spinWheel() {
   const winnerIndex = Math.floor(Math.random() * list.length);
   
   // Calculate target angle to align selected segment under the pointer (at 12 o'clock / -Math.PI/2)
-  // segment center angle = winnerIndex * segmentArc + segmentArc/2
-  // pointer angle = -Math.PI / 2 (or 3/2 * Math.PI)
-  // Target rotation angle = pointer_angle - segment_center_angle
   const targetSegmentAngle = winnerIndex * segmentArc + (segmentArc / 2);
   const finalAngle = (1.5 * Math.PI) - targetSegmentAngle + (spinCount * 2 * Math.PI);
   
@@ -1350,8 +1659,9 @@ function spinWheel() {
 async function handleWin(winner) {
   triggerConfetti();
   
-  const prizeOrder = STATE.winners.length + 1;
-  const rewardName = document.getElementById("draw-reward-name").value.trim() || `รางวัลนำโชค ลำดับที่ ${prizeOrder}`;
+  const currentPrize = getCurrentPrizeInfo();
+  const winnerNo = currentPrize.prizeLabel; // e.g. "รางวัลที่ 1"
+  const rewardName = currentPrize.prizeName; // e.g. "ตู้เย็น 2 ประตู..."
   
   // Look up goals/targets from registrations for full detail
   const reg = STATE.registrations.find(r => String(r.EmployeeID).trim() === winner.EmployeeID);
@@ -1360,7 +1670,7 @@ async function handleWin(winner) {
 
   const winnerData = {
     action: "saveWinner",
-    winnerNo: `รางวัลที่ ${prizeOrder}`,
+    winnerNo: winnerNo,
     employeeId: winner.EmployeeID,
     firstName: winner.FirstName,
     lastName: winner.LastName,
@@ -1385,10 +1695,10 @@ async function handleWin(winner) {
     });
     localStorage.setItem("mock_winners", JSON.stringify(STATE.winners));
     
-    announceWinnerDialog(winner, prizeOrder, rewardName);
+    announceWinnerDialog(winner, winnerNo, rewardName);
     updateEligibleList();
     renderWheel();
-    renderWinnersList();
+    updateLuckyDrawUI();
   } else {
     // Online save to sheet
     try {
@@ -1396,10 +1706,10 @@ async function handleWin(winner) {
       const response = await fetchJSONP(url);
       if (response && response.success) {
         await syncData();
-        announceWinnerDialog(winner, prizeOrder, rewardName);
+        announceWinnerDialog(winner, winnerNo, rewardName);
         updateEligibleList();
         renderWheel();
-        renderWinnersList();
+        updateLuckyDrawUI();
       } else {
         alert("บันทึกผู้ได้รับรางวัลลงชีตไม่สำเร็จ: " + (response.error || "เกิดข้อผิดพลาด"));
       }
@@ -1407,37 +1717,52 @@ async function handleWin(winner) {
       alert(err.message);
     }
   }
-  
-  // Reset reward text field for next spin
-  document.getElementById("draw-reward-name").value = "";
 }
 
 function announceWinnerDialog(winner, prizeOrder, rewardName) {
-  alert(`🎉 ขอแสดงความยินดีกับผู้โชคดี!\n\nรางวัลที่: ${prizeOrder}\nของรางวัล: ${rewardName}\n\nรหัสพนักงาน: ${winner.EmployeeID}\nคุณ: ${winner.FirstName} ${winner.LastName}\nแผนก: ${winner.Department}\n\nระบบบันทึกผลลงชีตนำโชคเรียบร้อยแล้วค่ะ!`);
+  alert(`🎉 ขอแสดงความยินดีกับผู้โชคดี!\n\n${prizeOrder}\nของรางวัล: ${rewardName}\n\nรหัสพนักงาน: ${winner.EmployeeID}\nคุณ: ${winner.FirstName} ${winner.LastName}\nแผนก: ${winner.Department}\n\nระบบบันทึกผลลงชีตเรียบร้อยแล้วค่ะ!`);
 }
 
 // Render winners cards list
 function renderWinnersList() {
-  // Clear slots first
+  const currentPrizeInfo = getCurrentPrizeInfo();
+
   for (let i = 1; i <= 5; i++) {
     const slot = document.querySelector(`.winner-slot-card[data-slot="${i}"]`);
-    slot.className = "winner-slot-card";
-    slot.querySelector(".slot-details").innerHTML = `<div class="slot-status">ว่าง - รอการสุ่มจับรางวัล...</div>`;
-  }
-  
-  // Fill with active winners
-  STATE.winners.forEach((w, idx) => {
-    const slotNum = idx + 1;
-    const slot = document.querySelector(`.winner-slot-card[data-slot="${slotNum}"]`);
-    if (slot) {
+    if (!slot) continue;
+    
+    const configuredPrize = STATE.project.prizes[i - 1] || `รางวัลที่ ${i}`;
+    
+    // Find winner for prize i
+    const winner = STATE.winners.find(w => {
+      const match = (w.WinnerNo || "").match(/รางวัลที่\s*(\d+)/);
+      return match && parseInt(match[1], 10) === i;
+    }) || (STATE.winners.length >= i && !STATE.winners.some(w => w.WinnerNo && w.WinnerNo.includes("รางวัลที่")) ? STATE.winners[i - 1] : null);
+    
+    if (winner) {
       slot.className = "winner-slot-card filled";
       slot.querySelector(".slot-details").innerHTML = `
-        <div class="slot-winner-title">คุณ ${w.FirstName} ${w.LastName} (${w.EmployeeID})</div>
-        <div class="slot-winner-meta">แผนก: ${w.Department} | เป้าหมาย: ${w.Goal} ${w.Target}</div>
-        <div class="slot-winner-reward">🎁 ของรางวัล: ${w.Reward}</div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+          <span style="font-weight: 700; color: #b45309; font-size: 0.85rem;">🎁 รางวัลที่ ${i}: ${winner.Reward || configuredPrize}</span>
+          <span class="badge badge-success" style="font-size: 0.7rem; padding: 2px 6px;">✅ สุ่มสำเร็จแล้ว</span>
+        </div>
+        <div class="slot-winner-title">คุณ ${winner.FirstName} ${winner.LastName} (${winner.EmployeeID})</div>
+        <div class="slot-winner-meta">แผนก: ${winner.Department} | เป้าหมาย: ${winner.Goal} ${winner.Target}</div>
+      `;
+    } else {
+      // Unclaimed slot
+      const isCurrentTarget = !currentPrizeInfo.isComplete && currentPrizeInfo.prizeNumber === i;
+      slot.className = `winner-slot-card ${isCurrentTarget ? 'active-target' : ''}`;
+      
+      slot.querySelector(".slot-details").innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+          <span style="font-weight: 600; color: #b45309; font-size: 0.85rem;">🎁 รางวัลที่ ${i}: ${configuredPrize}</span>
+          ${isCurrentTarget ? '<span class="badge badge-warning" style="font-size: 0.7rem; padding: 2px 6px; font-weight: bold; background: #fef08a; color: #854d0e;">🎯 กำลังสุ่มรอบนี้!</span>' : '<span style="font-size: 0.75rem; color: var(--text-muted);">⏳ รอรอบสุ่ม</span>'}
+        </div>
+        <div class="slot-status">${isCurrentTarget ? '👉 กดปุ่ม "หมุนวงล้อสุ่มจับรางวัล" ด้านซ้ายเพื่อลุ้นผู้โชคดี' : 'ว่าง - รอการสุ่มจับรางวัล...'}</div>
       `;
     }
-  });
+  }
 }
 
 // Reset winners list (clear in Sheet / local)
@@ -1452,7 +1777,7 @@ async function resetWinners() {
     alert("รีเซ็ตสถิติผู้ได้รับรางวัลเพื่อจับใหม่เรียบร้อยแล้วค่ะ");
     updateEligibleList();
     renderWheel();
-    renderWinnersList();
+    updateLuckyDrawUI();
   } else {
     try {
       const url = `${STATE.apiSettings.apiUrl}?action=clearWinnersJSONP`;
@@ -1462,7 +1787,7 @@ async function resetWinners() {
         alert("รีเซ็ตสถิติผู้ได้รับรางวัลเพื่อเริ่มสุ่มใหม่สำเร็จเรียบร้อยค่ะ");
         updateEligibleList();
         renderWheel();
-        renderWinnersList();
+        updateLuckyDrawUI();
       } else {
         alert("ไม่สามารถล้างข้อมูลในชีตได้: " + (response.error || "เกิดข้อผิดพลาด"));
       }
