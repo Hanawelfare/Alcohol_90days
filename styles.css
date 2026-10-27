@@ -338,6 +338,10 @@ body {
   background: linear-gradient(90deg, var(--primary-color), #f59e0b);
 }
 
+.card-deco-bar.bg-emerald {
+  background: linear-gradient(90deg, var(--emerald-color), #10b981);
+}
+
 .card-deco-bar.bg-dark {
   background: linear-gradient(90deg, var(--text-muted), var(--text-main));
 }
@@ -1096,6 +1100,23 @@ input:checked + .slider:before {
   border: 1px solid var(--primary-color);
   box-shadow: var(--shadow-sm);
   animation: pulseCard 0.5s ease;
+}
+
+.winner-slot-card.active-target {
+  background: #fffdf5;
+  border: 2px solid #f59e0b;
+  box-shadow: 0 0 14px rgba(245, 158, 11, 0.4);
+}
+
+.winner-slot-card.active-target .slot-num {
+  background: #d97706;
+  box-shadow: 0 0 8px rgba(217, 119, 6, 0.6);
+  animation: pulseSlot 1.5s infinite;
+}
+
+@keyframes pulseSlot {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
 }
 
 @keyframes pulseCard {
