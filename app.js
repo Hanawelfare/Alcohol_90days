@@ -209,6 +209,21 @@ function switchTab(pageId) {
   }
 }
 
+let hasAutoNavigated = false;
+
+// If registration is closed, automatically route visitors to the 3-Month survey page on initial load
+function checkInitialPageRedirect() {
+  if (hasAutoNavigated) return;
+  if (STATE.config.RegistrationOpen === "false") {
+    if (window.location.hash && window.location.hash.includes("admin")) return;
+    const activePage = document.querySelector(".page.active");
+    if (!activePage || activePage.id === "register-page") {
+      hasAutoNavigated = true;
+      switchTab("survey-page");
+    }
+  }
+}
+
 function switchAdminSubpage(subpageId) {
   document.querySelectorAll(".admin-subpage").forEach(sp => sp.classList.remove("active"));
   document.querySelectorAll(".admin-tab-btn").forEach(btn => btn.classList.remove("active"));
@@ -411,6 +426,7 @@ async function syncData() {
       updateSurveyAvailability(isOpen);
       updateAdminSurveyToggleUI(isOpen);
       
+      checkInitialPageRedirect();
       calculateStats();
       updateModeBadges();
     } else {
@@ -484,6 +500,8 @@ function loadMockData() {
   const isOpen = STATE.config.SurveyOpen === "true";
   updateSurveyAvailability(isOpen);
   updateAdminSurveyToggleUI(isOpen);
+  
+  checkInitialPageRedirect();
 }
 
 // Show/Hide Full Screen Loader
@@ -927,6 +945,7 @@ function initDateCheck() {
   // Perform locks check initially based on state
   updateRegistrationAvailability(STATE.config.RegistrationOpen !== "false");
   updateSurveyAvailability(STATE.config.SurveyOpen === "true");
+  checkInitialPageRedirect();
 }
 
 function updateRegistrationAvailability(enable) {
